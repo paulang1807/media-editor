@@ -5,7 +5,8 @@ web_modules/
 
 # Build and Packaging outputs
 dist/
-build/
+build/*
+!build/icon.png
 out/
 release/
 bin/

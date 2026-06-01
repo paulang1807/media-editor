@@ -2,6 +2,8 @@
 
 A beautiful, high-fidelity macOS desktop application designed to split video files into multiple clips quickly and losslessly. Built on top of Electron, this application provides a native macOS dark-mode user experience with interactive timeline scrubbers, dynamic clip-range coloring, and high-performance ffmpeg operations.
 
+![macOS Media Splitter & Editor](./split_feature_ui.png)
+
 ---
 
 ## Key Features
@@ -12,6 +14,11 @@ A beautiful, high-fidelity macOS desktop application designed to split video fil
   - Speed up or slow down videos (from `0.25x` to `10.0x`) using custom sliders, inputs, or standard presets.
   - Multi-tempo audio filter chaining keeps audio pitch and speed perfectly in sync.
   - Smart fallback runs video-only speedups if the input has no audio track.
+- **Video Frame Cropper Tool**:
+  - Interactively select regions of the video frame using a draggable/resizable visual crop box.
+  - Lock aspect ratios to standard presets (`Freeform`, `1:1 Square`, `16:9 HD`, `9:16 Shorts`, `4:3 TV`).
+  - Enter precise native pixel coordinates (X, Y, Width, Height) directly using the coordinate inputs.
+  - Re-encodes video using H.264 with an automatic audio fallback if the file has no audio stream.
 - **Precision Time Syncer**: Sync clip start/end times directly with the video player's current playback position via one-click "Use Current Time" buttons.
 - **Dual Splitting Modes**:
   - **Fast/Lossless (Instant)**: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without re-encoding quality loss.
@@ -89,7 +96,7 @@ Since the app is built locally without an active Apple Developer Team certificat
 
 ### General
 1. **Load a Video**: Drag a video file onto the home dropzone, or click **Browse File** to select one.
-2. **Switch Tools**: Use the tab buttons at the top of the sidebar to toggle between **Splitter** and **Speed Changer** modes.
+2. **Switch Tools**: Use the tab buttons at the top of the sidebar to toggle between **Splitter**, **Speed Changer**, and **Cropper** modes.
 
 ### Video Splitter Mode
 1. **Configure Clips**: In the **Splitter** tab, select the number of clips you want to generate.
@@ -101,10 +108,25 @@ Since the app is built locally without an active Apple Developer Team certificat
    - *Frame-Accurate* (re-encodes to cut at exact frames)
 4. **Export**: Click **Generate Clips** and select a folder of choice. Click **Open in Finder** upon completion.
 
+![Video Splitter UI](./split_feature_ui.png)
+
 ### Speed Changer Mode
 1. **Configure Speed**: In the **Speed Changer** tab, select a speed factor (e.g. `2.0x` preset, or adjust the **Custom Speed Factor** slider/numeric input).
 2. **Set Filename**: The target filename is prefilled automatically based on your speed setting (e.g. `video_2.00x.mp4`), but you can customize it as desired.
 3. **Export**: Click **Apply Speed & Export**, select your destination folder, and wait for the conversion to finish.
+
+![Video Speed Changer UI](./speed_feature_ui.png)
+
+### Video Cropper Mode
+1. **Activate Tab**: Select the **Cropper** tab at the top of the sidebar to display the crop overlay on the player.
+2. **Adjust Crop Area**:
+   - Drag the center of the crop box to reposition it.
+   - Drag any of the 4 circle corner handles to resize it.
+   - Or, type exact native pixel coordinate values in the **X, Y, Width, Height** input fields.
+3. **Select Aspect Ratio**: Select a preset ratio (e.g. `16:9 HD` or `1:1 Square`) to lock the crop box's aspect ratio during manual resizes.
+4. **Export**: Confirm the output file name, click **Apply Crop & Export**, and select a destination folder.
+
+![Video Frame Cropper UI](./crop_feature_ui.png)
 
 ---
 

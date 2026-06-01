@@ -51,6 +51,7 @@ function createWindow() {
     minHeight: 650,
     title: 'Media Splitter & Editor',
     titleBarStyle: 'default',
+    icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

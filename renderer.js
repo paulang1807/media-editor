@@ -96,8 +96,25 @@ const resultsOverlay = document.getElementById('results-overlay');
 const openFinderBtn = document.getElementById('open-finder-btn');
 const closeResultsBtn = document.getElementById('close-results-btn');
 
+// Settings Preference Elements
+const btnSettings = document.getElementById('btn-settings');
+const settingsModal = document.getElementById('settings-modal');
+const settingsDirPath = document.getElementById('settings-dir-path');
+const settingsBrowseBtn = document.getElementById('settings-browse-btn');
+const settingsAlwaysPrompt = document.getElementById('settings-always-prompt');
+const settingsDefaultAccuracy = document.getElementById('settings-default-accuracy');
+const settingsSaveBtn = document.getElementById('settings-save-btn');
+const settingsCancelBtn = document.getElementById('settings-cancel-btn');
+
+let settings = {
+  defaultExportDir: null,
+  alwaysPrompt: true,
+  defaultAccuracy: 'fast'
+};
+
 // Initialize Events
 document.addEventListener('DOMContentLoaded', () => {
+  loadSettings();
   setupFileImportEvents();
   setupPlayerEvents();
   setupSidebarEvents();
@@ -105,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabEvents();
   setupSpeedChangerEvents();
   setupCropperEvents();
+  setupSettingsEvents();
 });
 
 // 1. File Import Handlers
@@ -190,7 +208,7 @@ function onVideoMetadataLoaded() {
 
   // Show workspace, hide empty state
   emptyState.style.display = 'none';
-  editorWorkspace.style.display = 'grid';
+  editorWorkspace.style.display = 'flex';
 
   // Initialize Clips
   clipCountInput.value = 2; // Default to 2 clips
@@ -1288,4 +1306,68 @@ function updateCropFilenamePreview() {
     return;
   }
   cropFilenameInput.value = `${videoBaseName}_cropped.${videoExt}`;
+}
+
+// Preference Settings Handlers
+function loadSettings() {
+  try {
+    const saved = localStorage.getItem('media-editor-settings');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      settings = { ...settings, ...parsed };
+    }
+  } catch (e) {
+    console.error('Failed to load settings from localStorage:', e);
+  }
+  
+  if (splitAccuracySelect) {
+    splitAccuracySelect.value = settings.defaultAccuracy;
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem('media-editor-settings', JSON.stringify(settings));
+  } catch (e) {
+    console.error('Failed to save settings to localStorage:', e);
+  }
+}
+
+function updateSettingsUI() {
+  settingsDirPath.textContent = settings.defaultExportDir || 'No default directory selected';
+  settingsAlwaysPrompt.checked = settings.alwaysPrompt;
+  settingsDefaultAccuracy.value = settings.defaultAccuracy;
+}
+
+function setupSettingsEvents() {
+  if (!btnSettings) return;
+
+  btnSettings.addEventListener('click', () => {
+    updateSettingsUI();
+    settingsModal.style.display = 'flex';
+  });
+
+  settingsBrowseBtn.addEventListener('click', async () => {
+    const dir = await window.electronAPI.selectOutputDirectory(settings.defaultExportDir);
+    if (dir) {
+      settings.defaultExportDir = dir;
+      settingsDirPath.textContent = dir;
+    }
+  });
+
+  settingsSaveBtn.addEventListener('click', () => {
+    settings.alwaysPrompt = settingsAlwaysPrompt.checked;
+    settings.defaultAccuracy = settingsDefaultAccuracy.value;
+    saveSettings();
+    
+    if (splitAccuracySelect) {
+      splitAccuracySelect.value = settings.defaultAccuracy;
+    }
+    
+    settingsModal.style.display = 'none';
+  });
+
+  settingsCancelBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+  });
 }
