@@ -139,20 +139,61 @@
     }).join(',');
   }
 
+  /**
+   * Projects a visual crop box coordinate (relative to display container bounds)
+   * to the native pixel dimensions of the video.
+   * @param {{ left: number, top: number, width: number, height: number }} cropRect
+   * @param {{ width: number, height: number }} videoContentRect
+   * @param {number} nativeWidth
+   * @param {number} nativeHeight
+   * @returns {{ x: number, y: number, width: number, height: number }} Native crop dimensions
+   */
+  function mapCropToNative(cropRect, videoContentRect, nativeWidth, nativeHeight) {
+    if (!cropRect || !videoContentRect || !nativeWidth || !nativeHeight) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+
+    const scaleX = nativeWidth / videoContentRect.width;
+    const scaleY = nativeHeight / videoContentRect.height;
+
+    let x = Math.round(cropRect.left * scaleX);
+    let y = Math.round(cropRect.top * scaleY);
+    let w = Math.round(cropRect.width * scaleX);
+    let h = Math.round(cropRect.height * scaleY);
+
+    // Clamping
+    x = Math.max(0, Math.min(x, nativeWidth));
+    y = Math.max(0, Math.min(y, nativeHeight));
+
+    if (x + w > nativeWidth) {
+      w = nativeWidth - x;
+    }
+    if (y + h > nativeHeight) {
+      h = nativeHeight - y;
+    }
+
+    w = Math.max(1, w);
+    h = Math.max(1, h);
+
+    return { x, y, width: w, height: h };
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       secondsToTimestamp,
       timestampToSeconds,
       isValidTimestampFormat,
-      getAudioSpeedFilter
+      getAudioSpeedFilter,
+      mapCropToNative
     };
   } else {
     window.helpers = {
       secondsToTimestamp,
       timestampToSeconds,
       isValidTimestampFormat,
-      getAudioSpeedFilter
+      getAudioSpeedFilter,
+      mapCropToNative
     };
   }
 })();

@@ -371,6 +371,118 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
   }
 });
 
+// IPC Handler: Video cropping execution
+ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, height) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  const cropFilter = `crop=${width}:${height}:${x}:${y}`;
+
+  const argsWithAudio = [
+    '-i', inputPath,
+    '-vf', cropFilter,
+    '-c:v', 'libx264',
+    '-preset', 'superfast',
+    '-crf', '20',
+    '-c:a', 'copy',
+    '-y',
+    outputPath
+  ];
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  try {
+    await runFFmpegCommand(argsWithAudio);
+    
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Cropping completed successfully!' };
+  } catch (error) {
+    const errorStr = error.message.toLowerCase();
+    
+    // Check if the error is due to missing audio stream
+    if (
+      errorStr.includes('matches no streams') || 
+      errorStr.includes('no audio') || 
+      errorStr.includes('invalid stream') ||
+      errorStr.includes('specifier \':a\'') ||
+      errorStr.includes('stream copy')
+    ) {
+      console.log('Video does not have audio stream. Retrying with video-only crop...');
+      
+      const argsVideoOnly = [
+        '-i', inputPath,
+        '-vf', cropFilter,
+        '-an',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-crf', '20',
+        '-y',
+        outputPath
+      ];
+
+      try {
+        await runFFmpegCommand(argsVideoOnly);
+        
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'done'
+        });
+        return { success: true, message: 'Cropping completed successfully (video-only)!' };
+      } catch (videoError) {
+        console.error('Video-only cropping failed:', videoError);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'error',
+          error: videoError.message
+        });
+        return { success: false, message: `Failed to crop video: ${videoError.message}` };
+      }
+    } else {
+      console.error('Cropping failed:', error);
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+      return { success: false, message: `Failed to crop video: ${error.message}` };
+    }
+  }
+});
+
 /**
  * Runs a spawned FFmpeg process.
  * @param {Array<string>} args - Command-line arguments for FFmpeg.

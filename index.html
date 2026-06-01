@@ -38,8 +38,22 @@
       <!-- Left Column: Video Preview and Timeline -->
       <div class="main-content">
         <div class="card player-card">
-          <div class="video-container">
+          <div class="video-container" id="video-container">
             <video id="video-player"></video>
+            <!-- Visual Crop Overlay -->
+            <div id="crop-overlay-container" class="crop-overlay-container" style="display: none;">
+              <div id="crop-mask-top" class="crop-mask"></div>
+              <div id="crop-mask-bottom" class="crop-mask"></div>
+              <div id="crop-mask-left" class="crop-mask"></div>
+              <div id="crop-mask-right" class="crop-mask"></div>
+              <div id="crop-box" class="crop-box">
+                <div class="crop-handle handle-tl" data-handle="tl"></div>
+                <div class="crop-handle handle-tr" data-handle="tr"></div>
+                <div class="crop-handle handle-bl" data-handle="bl"></div>
+                <div class="crop-handle handle-br" data-handle="br"></div>
+                <div class="crop-drag-area"></div>
+              </div>
+            </div>
           </div>
           
           <div class="player-controls">
@@ -92,6 +106,7 @@
         <div class="sidebar-tabs">
           <button id="tab-split" class="tab-btn active">Splitter</button>
           <button id="tab-speed" class="tab-btn">Speed Changer</button>
+          <button id="tab-crop" class="tab-btn">Cropper</button>
         </div>
 
         <!-- Tool Panel 1: Splitter -->
@@ -173,6 +188,65 @@
             <h3>Export Settings</h3>
             <small class="help-text" style="display: block; margin-bottom: 12px;">Applying speed adjustments requires re-encoding the video and audio streams to preserve synchronization.</small>
             <button id="speed-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Speed & Export</button>
+          </div>
+        </div>
+
+        <!-- Tool Panel 3: Cropper -->
+        <div id="panel-crop" class="tool-panel">
+          <!-- Crop Settings Card -->
+          <div class="card sidebar-card" style="margin-bottom: 20px;">
+            <div class="sidebar-header">
+              <h3>Crop Settings</h3>
+            </div>
+            
+            <div class="crop-settings-body">
+              <!-- Aspect Ratio Presets Grid -->
+              <div class="crop-presets-label">Aspect Ratio Presets</div>
+              <div class="crop-presets-grid">
+                <button class="preset-btn active" data-ratio="free">Freeform</button>
+                <button class="preset-btn" data-ratio="1:1">1:1 Square</button>
+                <button class="preset-btn" data-ratio="16:9">16:9 HD</button>
+                <button class="preset-btn" data-ratio="9:16">9:16 Shorts</button>
+                <button class="preset-btn" data-ratio="4:3">4:3 TV</button>
+              </div>
+
+              <!-- Manual Fields -->
+              <div class="crop-manual-fields">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="crop-val-x">X (px)</label>
+                    <input type="number" id="crop-val-x" min="0" step="1" value="0" class="num-input crop-coord-input">
+                  </div>
+                  <div class="form-group">
+                    <label for="crop-val-y">Y (px)</label>
+                    <input type="number" id="crop-val-y" min="0" step="1" value="0" class="num-input crop-coord-input">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="crop-val-w">Width (px)</label>
+                    <input type="number" id="crop-val-w" min="1" step="1" value="100" class="num-input crop-coord-input">
+                  </div>
+                  <div class="form-group">
+                    <label for="crop-val-h">Height (px)</label>
+                    <input type="number" id="crop-val-h" min="1" step="1" value="100" class="num-input crop-coord-input">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Export Filename Pre-visualization -->
+              <div class="form-group" style="margin-top: 15px;">
+                <label>Export File Name</label>
+                <input type="text" id="crop-filename-input" class="clip-name-input" placeholder="Output video file name">
+              </div>
+            </div>
+          </div>
+
+          <!-- Crop Export Card -->
+          <div class="card sidebar-card export-card">
+            <h3>Export Settings</h3>
+            <small class="help-text" style="display: block; margin-bottom: 12px;">Cropping requires re-encoding the video stream to apply the new dimensions.</small>
+            <button id="crop-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Crop & Export</button>
           </div>
         </div>
 

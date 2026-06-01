@@ -36,6 +36,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('change-video-speed', inputPath, outputPath, multiplier),
 
   /**
+   * Triggers the video cropping process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the modified video.
+   * @param {number} x - Native X coordinate of crop.
+   * @param {number} y - Native Y coordinate of crop.
+   * @param {number} width - Native width of crop.
+   * @param {number} height - Native height of crop.
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  cropVideo: (inputPath, outputPath, x, y, width, height) =>
+    ipcRenderer.invoke('crop-video', inputPath, outputPath, x, y, width, height),
+
+  /**
    * Opens the given directory in the macOS Finder.
    * @param {string} dirPath - Folder path.
    * @returns {Promise<void>}

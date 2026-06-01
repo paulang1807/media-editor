@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter } = helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative } = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -105,6 +105,56 @@ describe('Time conversion and validation helpers', () => {
       expect(getAudioSpeedFilter(0)).toBe('atempo=1');
       expect(getAudioSpeedFilter(NaN)).toBe('atempo=1');
       expect(getAudioSpeedFilter('invalid')).toBe('atempo=1');
+    });
+  });
+
+  describe('mapCropToNative', () => {
+    test('scales coordinates correctly when native is larger than display', () => {
+      const cropRect = { left: 100, top: 50, width: 200, height: 100 };
+      const videoContent = { width: 500, height: 250 };
+      const nativeW = 1000;
+      const nativeH = 500;
+
+      const result = mapCropToNative(cropRect, videoContent, nativeW, nativeH);
+      expect(result).toEqual({ x: 200, y: 100, width: 400, height: 200 });
+    });
+
+    test('rounds coordinates to nearest integer', () => {
+      const cropRect = { left: 10.4, top: 20.6, width: 30.1, height: 40.8 };
+      const videoContent = { width: 100, height: 100 };
+      const nativeW = 100;
+      const nativeH = 100;
+
+      const result = mapCropToNative(cropRect, videoContent, nativeW, nativeH);
+      expect(result).toEqual({ x: 10, y: 21, width: 30, height: 41 });
+    });
+
+    test('clamps top-left coordinates to positive native bounds', () => {
+      const cropRect = { left: -50, top: -10, width: 100, height: 100 };
+      const videoContent = { width: 100, height: 100 };
+      const nativeW = 100;
+      const nativeH = 100;
+
+      const result = mapCropToNative(cropRect, videoContent, nativeW, nativeH);
+      expect(result.x).toBe(0);
+      expect(result.y).toBe(0);
+    });
+
+    test('clamps width and height to not exceed native bounds', () => {
+      const cropRect = { left: 80, top: 80, width: 50, height: 50 };
+      const videoContent = { width: 100, height: 100 };
+      const nativeW = 100;
+      const nativeH = 100;
+
+      const result = mapCropToNative(cropRect, videoContent, nativeW, nativeH);
+      expect(result.x).toBe(80);
+      expect(result.y).toBe(80);
+      expect(result.width).toBe(20);  // 100 - 80
+      expect(result.height).toBe(20); // 100 - 80
+    });
+
+    test('handles empty or null parameters gracefully', () => {
+      expect(mapCropToNative(null, null, 100, 100)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
     });
   });
 

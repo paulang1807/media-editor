@@ -1,5 +1,5 @@
 // Access helpers from global window object
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative } = window.helpers;
 
 // State management
 let videoPath = null;
@@ -11,6 +11,15 @@ let outputDir = null;
 let clips = [];
 let activeClipIndex = null; // Track which clip is currently being played/previewed
 let speedMultiplier = 1.0;
+
+// Cropper State
+let cropRect = { left: 0, top: 0, width: 0, height: 0 };
+let cropNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+let currentAspectRatio = 'free'; // 'free', '1:1', '16:9', '9:16', '4:3'
+let isDragging = false;
+let dragStart = { x: 0, y: 0 };
+let dragMode = null; // 'move', 'tl', 'tr', 'bl', 'br'
+let cropBoxStart = { left: 0, top: 0, width: 0, height: 0 };
 
 // Color palette for clip timelines (Dark mode glowing translucent colors)
 const CLIP_COLORS = [
@@ -51,14 +60,32 @@ const generateBtn = document.getElementById('generate-btn');
 // Sidebar Tabs & Panels
 const tabSplit = document.getElementById('tab-split');
 const tabSpeed = document.getElementById('tab-speed');
+const tabCrop = document.getElementById('tab-crop');
 const panelSplit = document.getElementById('panel-split');
 const panelSpeed = document.getElementById('panel-speed');
+const panelCrop = document.getElementById('panel-crop');
 
 // Speed Changer Elements
 const speedSlider = document.getElementById('speed-slider');
 const speedInput = document.getElementById('speed-input');
 const speedFilenameInput = document.getElementById('speed-filename-input');
 const speedGenerateBtn = document.getElementById('speed-generate-btn');
+
+// Cropper UI Elements
+const cropOverlayContainer = document.getElementById('crop-overlay-container');
+const cropBox = document.getElementById('crop-box');
+const cropValX = document.getElementById('crop-val-x');
+const cropValY = document.getElementById('crop-val-y');
+const cropValW = document.getElementById('crop-val-w');
+const cropValH = document.getElementById('crop-val-h');
+const cropFilenameInput = document.getElementById('crop-filename-input');
+const cropGenerateBtn = document.getElementById('crop-generate-btn');
+
+// Masks
+const maskTop = document.getElementById('crop-mask-top');
+const maskBottom = document.getElementById('crop-mask-bottom');
+const maskLeft = document.getElementById('crop-mask-left');
+const maskRight = document.getElementById('crop-mask-right');
 
 // Progress & Overlays
 const progressOverlay = document.getElementById('progress-overlay');
@@ -77,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupExportEvents();
   setupTabEvents();
   setupSpeedChangerEvents();
+  setupCropperEvents();
 });
 
 // 1. File Import Handlers
@@ -146,6 +174,10 @@ function loadVideo(filePath, fileName) {
   if (speedInput) speedInput.value = 1.0;
   updateSpeedFilenamePreview();
 
+  // Reset cropping settings
+  currentAspectRatio = 'free';
+  updateCropFilenamePreview();
+
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
 
@@ -163,6 +195,9 @@ function onVideoMetadataLoaded() {
   // Initialize Clips
   clipCountInput.value = 2; // Default to 2 clips
   generateClipsData(2);
+
+  // Initialize crop normalized coords
+  cropNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
 }
 
 // 2. Video Player Event & Scrubber Setup
@@ -552,15 +587,33 @@ function setupTabEvents() {
   tabSplit.addEventListener('click', () => {
     tabSplit.classList.add('active');
     tabSpeed.classList.remove('active');
+    tabCrop.classList.remove('active');
     panelSplit.classList.add('active');
     panelSpeed.classList.remove('active');
+    panelCrop.classList.remove('active');
+    cropOverlayContainer.style.display = 'none';
   });
 
   tabSpeed.addEventListener('click', () => {
     tabSpeed.classList.add('active');
     tabSplit.classList.remove('active');
+    tabCrop.classList.remove('active');
     panelSpeed.classList.add('active');
     panelSplit.classList.remove('active');
+    panelCrop.classList.remove('active');
+    cropOverlayContainer.style.display = 'none';
+  });
+
+  tabCrop.addEventListener('click', () => {
+    tabCrop.classList.add('active');
+    tabSplit.classList.remove('active');
+    tabSpeed.classList.remove('active');
+    panelCrop.classList.add('active');
+    panelSplit.classList.remove('active');
+    panelSpeed.classList.remove('active');
+    if (videoPath) {
+      updateCropOverlayLayout();
+    }
   });
 }
 
@@ -704,4 +757,535 @@ function updateSpeedFilenamePreview() {
     return;
   }
   speedFilenameInput.value = `${videoBaseName}_${speedMultiplier.toFixed(2)}x.${videoExt}`;
+}
+
+// Cropper UI and Interaction Logics
+function setupCropperEvents() {
+  // Bind aspect ratio preset buttons
+  const presetBtns = panelCrop.querySelectorAll('.preset-btn');
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ratio = btn.getAttribute('data-ratio');
+      setAspectRatio(ratio);
+    });
+  });
+
+  // Bind manual input fields
+  const inputs = [cropValX, cropValY, cropValW, cropValH];
+  inputs.forEach(input => {
+    input.addEventListener('input', handleManualInputChange);
+  });
+
+  // Drag listeners
+  const dragArea = cropBox.querySelector('.crop-drag-area');
+  dragArea.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    isDragging = true;
+    dragMode = 'move';
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+    cropBoxStart = { ...cropRect };
+  });
+
+  const handles = cropBox.querySelectorAll('.crop-handle');
+  handles.forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent drag area from triggering
+      isDragging = true;
+      dragMode = handle.getAttribute('data-handle');
+      dragStart.x = e.clientX;
+      dragStart.y = e.clientY;
+      cropBoxStart = { ...cropRect };
+    });
+  });
+
+  // Resize handler on window to update crop overlay layout
+  window.addEventListener('resize', () => {
+    if (tabCrop.classList.contains('active') && videoPath) {
+      updateCropOverlayLayout();
+    }
+  });
+
+  // Apply Crop and Export button action
+  cropGenerateBtn.addEventListener('click', handleCropExport);
+
+  // Document level drag tracking
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    
+    const rect = getVideoContentRect();
+    if (!rect) return;
+    
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    
+    if (dragMode === 'move') {
+      let newLeft = cropBoxStart.left + dx;
+      let newTop = cropBoxStart.top + dy;
+      
+      // Clamp to container bounds
+      newLeft = Math.max(0, Math.min(newLeft, rect.width - cropRect.width));
+      newTop = Math.max(0, Math.min(newTop, rect.height - cropRect.height));
+      
+      cropRect.left = newLeft;
+      cropRect.top = newTop;
+    } else {
+      // Resize mode
+      const minSize = 20; // visual px minimum
+      
+      // Aspect ratio R
+      let R = null;
+      if (currentAspectRatio !== 'free') {
+        const [rw, rh] = currentAspectRatio.split(':').map(Number);
+        R = rw / rh;
+      }
+      
+      if (dragMode === 'br') {
+        let newW = cropBoxStart.width + dx;
+        let newH = cropBoxStart.height + dy;
+        
+        newW = Math.max(minSize, Math.min(newW, rect.width - cropBoxStart.left));
+        newH = Math.max(minSize, Math.min(newH, rect.height - cropBoxStart.top));
+        
+        if (R !== null) {
+          newH = newW / R;
+          if (cropBoxStart.top + newH > rect.height) {
+            newH = rect.height - cropBoxStart.top;
+            newW = newH * R;
+          }
+          if (cropBoxStart.left + newW > rect.width) {
+            newW = rect.width - cropBoxStart.left;
+            newH = newW / R;
+          }
+        }
+        
+        cropRect.width = newW;
+        cropRect.height = newH;
+      } 
+      else if (dragMode === 'tr') {
+        let newW = cropBoxStart.width + dx;
+        let newH = cropBoxStart.height - dy;
+        let newTop = cropBoxStart.top + dy;
+        
+        newW = Math.max(minSize, Math.min(newW, rect.width - cropBoxStart.left));
+        if (newTop < 0) {
+          newH = cropBoxStart.top + cropBoxStart.height;
+          newTop = 0;
+        }
+        newH = Math.max(minSize, newH);
+        newTop = cropBoxStart.top + cropBoxStart.height - newH;
+        
+        if (R !== null) {
+          newH = newW / R;
+          newTop = cropBoxStart.top + cropBoxStart.height - newH;
+          if (newTop < 0) {
+            newTop = 0;
+            newH = cropBoxStart.top + cropBoxStart.height;
+            newW = newH * R;
+          }
+          if (cropBoxStart.left + newW > rect.width) {
+            newW = rect.width - cropBoxStart.left;
+            newH = newW / R;
+            newTop = cropBoxStart.top + cropBoxStart.height - newH;
+          }
+        }
+        
+        cropRect.width = newW;
+        cropRect.height = newH;
+        cropRect.top = newTop;
+      }
+      else if (dragMode === 'bl') {
+        let newW = cropBoxStart.width - dx;
+        let newLeft = cropBoxStart.left + dx;
+        let newH = cropBoxStart.height + dy;
+        
+        if (newLeft < 0) {
+          newW = cropBoxStart.left + cropBoxStart.width;
+          newLeft = 0;
+        }
+        newW = Math.max(minSize, newW);
+        newLeft = cropBoxStart.left + cropBoxStart.width - newW;
+        newH = Math.max(minSize, Math.min(newH, rect.height - cropBoxStart.top));
+        
+        if (R !== null) {
+          newH = newW / R;
+          if (cropBoxStart.top + newH > rect.height) {
+            newH = rect.height - cropBoxStart.top;
+            newW = newH * R;
+            newLeft = cropBoxStart.left + cropBoxStart.width - newW;
+          }
+          if (newLeft < 0) {
+            newLeft = 0;
+            newW = cropBoxStart.left + cropBoxStart.width;
+            newH = newW / R;
+          }
+        }
+        
+        cropRect.width = newW;
+        cropRect.left = newLeft;
+        cropRect.height = newH;
+      }
+      else if (dragMode === 'tl') {
+        let newW = cropBoxStart.width - dx;
+        let newLeft = cropBoxStart.left + dx;
+        let newH = cropBoxStart.height - dy;
+        let newTop = cropBoxStart.top + dy;
+        
+        if (newLeft < 0) {
+          newW = cropBoxStart.left + cropBoxStart.width;
+          newLeft = 0;
+        }
+        newW = Math.max(minSize, newW);
+        newLeft = cropBoxStart.left + cropBoxStart.width - newW;
+        
+        if (newTop < 0) {
+          newH = cropBoxStart.top + cropBoxStart.height;
+          newTop = 0;
+        }
+        newH = Math.max(minSize, newH);
+        newTop = cropBoxStart.top + cropBoxStart.height - newH;
+        
+        if (R !== null) {
+          newH = newW / R;
+          newTop = cropBoxStart.top + cropBoxStart.height - newH;
+          
+          if (newTop < 0) {
+            newTop = 0;
+            newH = cropBoxStart.top + cropBoxStart.height;
+            newW = newH * R;
+            newLeft = cropBoxStart.left + cropBoxStart.width - newW;
+          }
+          if (newLeft < 0) {
+            newLeft = 0;
+            newW = cropBoxStart.left + cropBoxStart.width;
+            newH = newW / R;
+            newTop = cropBoxStart.top + cropBoxStart.height - newH;
+          }
+        }
+        
+        cropRect.width = newW;
+        cropRect.left = newLeft;
+        cropRect.height = newH;
+        cropRect.top = newTop;
+      }
+    }
+    
+    // Update normalized coordinates
+    cropNormalized.x = cropRect.left / rect.width;
+    cropNormalized.y = cropRect.top / rect.height;
+    cropNormalized.w = cropRect.width / rect.width;
+    cropNormalized.h = cropRect.height / rect.height;
+    
+    drawCropBoxAndMasks();
+    updateManualInputFields();
+  });
+
+  document.addEventListener('mouseup', () => {
+    isDragging = false;
+    dragMode = null;
+  });
+}
+
+function getVideoContentRect() {
+  if (!videoPlayer || !videoPlayer.videoWidth || !videoPlayer.videoHeight) {
+    return null;
+  }
+  
+  const videoRatio = videoPlayer.videoWidth / videoPlayer.videoHeight;
+  const containerWidth = videoPlayer.clientWidth;
+  const containerHeight = videoPlayer.clientHeight;
+  const containerRatio = containerWidth / containerHeight;
+  
+  let displayWidth, displayHeight;
+  let left, top;
+  
+  if (containerRatio > videoRatio) {
+    // Pillarboxed
+    displayHeight = containerHeight;
+    displayWidth = displayHeight * videoRatio;
+    left = (containerWidth - displayWidth) / 2;
+    top = 0;
+  } else {
+    // Letterboxed
+    displayWidth = containerWidth;
+    displayHeight = displayWidth / videoRatio;
+    left = 0;
+    top = (containerHeight - displayHeight) / 2;
+  }
+  
+  return {
+    left: left,
+    top: top,
+    width: displayWidth,
+    height: displayHeight
+  };
+}
+
+function updateCropOverlayLayout() {
+  const rect = getVideoContentRect();
+  if (!rect) {
+    cropOverlayContainer.style.display = 'none';
+    return;
+  }
+  
+  if (tabCrop.classList.contains('active')) {
+    cropOverlayContainer.style.display = 'block';
+  } else {
+    cropOverlayContainer.style.display = 'none';
+    return;
+  }
+  
+  cropOverlayContainer.style.left = `${rect.left}px`;
+  cropOverlayContainer.style.top = `${rect.top}px`;
+  cropOverlayContainer.style.width = `${rect.width}px`;
+  cropOverlayContainer.style.height = `${rect.height}px`;
+  
+  // Sync the visual crop box from normalized coordinates
+  cropRect.left = cropNormalized.x * rect.width;
+  cropRect.top = cropNormalized.y * rect.height;
+  cropRect.width = cropNormalized.w * rect.width;
+  cropRect.height = cropNormalized.h * rect.height;
+  
+  drawCropBoxAndMasks();
+  updateManualInputFields();
+}
+
+function drawCropBoxAndMasks() {
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  cropBox.style.left = `${cropRect.left}px`;
+  cropBox.style.top = `${cropRect.top}px`;
+  cropBox.style.width = `${cropRect.width}px`;
+  cropBox.style.height = `${cropRect.height}px`;
+  
+  const x = cropRect.left;
+  const y = cropRect.top;
+  const w = cropRect.width;
+  const h = cropRect.height;
+  
+  maskTop.style.left = '0px';
+  maskTop.style.top = '0px';
+  maskTop.style.width = `${rect.width}px`;
+  maskTop.style.height = `${y}px`;
+  
+  maskBottom.style.left = '0px';
+  maskBottom.style.top = `${y + h}px`;
+  maskBottom.style.width = `${rect.width}px`;
+  maskBottom.style.height = `${Math.max(0, rect.height - (y + h))}px`;
+  
+  maskLeft.style.left = '0px';
+  maskLeft.style.top = `${y}px`;
+  maskLeft.style.width = `${x}px`;
+  maskLeft.style.height = `${h}px`;
+  
+  maskRight.style.left = `${x + w}px`;
+  maskRight.style.top = `${y}px`;
+  maskRight.style.width = `${Math.max(0, rect.width - (x + w))}px`;
+  maskRight.style.height = `${h}px`;
+}
+
+function updateManualInputFields() {
+  if (!videoPlayer || !videoPlayer.videoWidth || !videoPlayer.videoHeight) return;
+  
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  const native = mapCropToNative(cropRect, rect, videoPlayer.videoWidth, videoPlayer.videoHeight);
+  
+  if (document.activeElement !== cropValX) cropValX.value = native.x;
+  if (document.activeElement !== cropValY) cropValY.value = native.y;
+  if (document.activeElement !== cropValW) cropValW.value = native.width;
+  if (document.activeElement !== cropValH) cropValH.value = native.height;
+}
+
+function handleManualInputChange() {
+  if (!videoPlayer || !videoPlayer.videoWidth || !videoPlayer.videoHeight) return;
+  
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  let nx = parseInt(cropValX.value, 10) || 0;
+  let ny = parseInt(cropValY.value, 10) || 0;
+  let nw = parseInt(cropValW.value, 10) || 100;
+  let nh = parseInt(cropValH.value, 10) || 100;
+  
+  const nativeW = videoPlayer.videoWidth;
+  const nativeH = videoPlayer.videoHeight;
+  
+  nx = Math.max(0, Math.min(nx, nativeW - 1));
+  ny = Math.max(0, Math.min(ny, nativeH - 1));
+  nw = Math.max(1, Math.min(nw, nativeW - nx));
+  nh = Math.max(1, Math.min(nh, nativeH - ny));
+  
+  if (currentAspectRatio !== 'free') {
+    const [rw, rh] = currentAspectRatio.split(':').map(Number);
+    const R = rw / rh;
+    
+    nh = Math.round(nw / R);
+    if (ny + nh > nativeH) {
+      nh = nativeH - ny;
+      nw = Math.round(nh * R);
+    }
+  }
+  
+  const scaleX = rect.width / nativeW;
+  const scaleY = rect.height / nativeH;
+  
+  cropRect.left = nx * scaleX;
+  cropRect.top = ny * scaleY;
+  cropRect.width = nw * scaleX;
+  cropRect.height = nh * scaleY;
+  
+  cropNormalized.x = cropRect.left / rect.width;
+  cropNormalized.y = cropRect.top / rect.height;
+  cropNormalized.w = cropRect.width / rect.width;
+  cropNormalized.h = cropRect.height / rect.height;
+  
+  drawCropBoxAndMasks();
+  
+  cropValX.value = nx;
+  cropValY.value = ny;
+  cropValW.value = nw;
+  cropValH.value = nh;
+}
+
+function setAspectRatio(ratioStr) {
+  currentAspectRatio = ratioStr;
+  
+  const presetBtns = panelCrop.querySelectorAll('.preset-btn');
+  presetBtns.forEach(btn => {
+    if (btn.getAttribute('data-ratio') === ratioStr) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+  
+  if (ratioStr === 'free') {
+    return;
+  }
+  
+  const [rw, rh] = ratioStr.split(':').map(Number);
+  const R = rw / rh;
+  
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  let newW, newH;
+  if (rect.width / rect.height > R) {
+    newH = rect.height * 0.8;
+    newW = newH * R;
+  } else {
+    newW = rect.width * 0.8;
+    newH = newW / R;
+  }
+  
+  cropRect.left = (rect.width - newW) / 2;
+  cropRect.top = (rect.height - newH) / 2;
+  cropRect.width = newW;
+  cropRect.height = newH;
+  
+  cropNormalized.x = cropRect.left / rect.width;
+  cropNormalized.y = cropRect.top / rect.height;
+  cropNormalized.w = cropRect.width / rect.width;
+  cropNormalized.h = cropRect.height / rect.height;
+  
+  drawCropBoxAndMasks();
+  updateManualInputFields();
+}
+
+async function handleCropExport() {
+  if (!videoPath) {
+    alert('Please load a video first.');
+    return;
+  }
+
+  const outputName = cropFilenameInput.value.trim();
+  if (!outputName) {
+    alert('Please enter an output file name.');
+    return;
+  }
+
+  const rect = getVideoContentRect();
+  if (!rect) {
+    alert('Cannot retrieve video player coordinates.');
+    return;
+  }
+
+  const native = mapCropToNative(cropRect, rect, videoPlayer.videoWidth, videoPlayer.videoHeight);
+
+  if (native.width <= 0 || native.height <= 0) {
+    alert('Invalid crop region size.');
+    return;
+  }
+
+  const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+  const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+  if (!dir) {
+    return;
+  }
+  outputDir = dir;
+
+  const outputPath = `${dir}/${outputName}`;
+
+  cropGenerateBtn.disabled = true;
+  cropGenerateBtn.textContent = 'Processing...';
+
+  progressOverlay.style.display = 'flex';
+  progressProgressBar.style.width = '0%';
+  progressPercentText.textContent = '0%';
+  progressStatusText.textContent = 'Preparing crop...';
+
+  const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+    if (data.status === 'processing') {
+      progressStatusText.textContent = `Applying crop filters to "${data.name}"...`;
+      progressProgressBar.style.width = '50%';
+      progressPercentText.textContent = '50%';
+    } else if (data.status === 'done') {
+      progressStatusText.textContent = 'Finished crop conversion!';
+      progressProgressBar.style.width = '100%';
+      progressPercentText.textContent = '100%';
+    } else if (data.status === 'error') {
+      progressStatusText.textContent = `Error: ${data.error}`;
+    }
+  });
+
+  try {
+    const result = await window.electronAPI.cropVideo(
+      videoPath,
+      outputPath,
+      native.x,
+      native.y,
+      native.width,
+      native.height
+    );
+    
+    removeProgressListener();
+    cropGenerateBtn.disabled = false;
+    cropGenerateBtn.textContent = 'Apply Crop & Export';
+    progressOverlay.style.display = 'none';
+
+    if (result.success) {
+      resultsOverlay.style.display = 'flex';
+    } else {
+      alert(`Failed to crop video: ${result.message}`);
+    }
+  } catch (error) {
+    removeProgressListener();
+    cropGenerateBtn.disabled = false;
+    cropGenerateBtn.textContent = 'Apply Crop & Export';
+    progressOverlay.style.display = 'none';
+    alert(`Unexpected error: ${error.message}`);
+  }
+}
+
+function updateCropFilenamePreview() {
+  if (!cropFilenameInput) return;
+  if (!videoBaseName) {
+    cropFilenameInput.value = '';
+    return;
+  }
+  cropFilenameInput.value = `${videoBaseName}_cropped.${videoExt}`;
 }
