@@ -26,6 +26,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('split-video', inputPath, outputDir, accuracy, clips),
 
   /**
+   * Triggers the video speedup process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the modified video.
+   * @param {number} multiplier - Speed multiplier (e.g. 2.0).
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  changeVideoSpeed: (inputPath, outputPath, multiplier) =>
+    ipcRenderer.invoke('change-video-speed', inputPath, outputPath, multiplier),
+
+  /**
    * Opens the given directory in the macOS Finder.
    * @param {string} dirPath - Folder path.
    * @returns {Promise<void>}

@@ -98,18 +98,61 @@
     return false;
   }
 
+  /**
+   * Generates the FFmpeg 'atempo' filter chain string for a speed multiplier.
+   * Since atempo only accepts values in [0.5, 2.0], values outside this range
+   * must be chained (multiplied).
+   * @param {number} multiplier
+   * @returns {string} FFmpeg audio filter string
+   */
+  function getAudioSpeedFilter(multiplier) {
+    if (typeof multiplier !== 'number' || isNaN(multiplier) || multiplier <= 0) {
+      return 'atempo=1';
+    }
+
+    const filters = [];
+    let temp = multiplier;
+
+    if (temp > 2.0) {
+      while (temp > 2.0) {
+        filters.push('atempo=2.0');
+        temp /= 2.0;
+      }
+      if (temp >= 0.5) {
+        filters.push(`atempo=${temp.toFixed(6)}`);
+      }
+    } else if (temp < 0.5) {
+      while (temp < 0.5) {
+        filters.push('atempo=0.5');
+        temp /= 0.5;
+      }
+      if (temp >= 0.5) {
+        filters.push(`atempo=${temp.toFixed(6)}`);
+      }
+    } else {
+      filters.push(`atempo=${temp.toFixed(6)}`);
+    }
+
+    return filters.map(f => {
+      const val = parseFloat(f.split('=')[1]);
+      return `atempo=${val.toString()}`;
+    }).join(',');
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       secondsToTimestamp,
       timestampToSeconds,
-      isValidTimestampFormat
+      isValidTimestampFormat,
+      getAudioSpeedFilter
     };
   } else {
     window.helpers = {
       secondsToTimestamp,
       timestampToSeconds,
-      isValidTimestampFormat
+      isValidTimestampFormat,
+      getAudioSpeedFilter
     };
   }
 })();

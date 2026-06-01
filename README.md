@@ -7,13 +7,16 @@ A beautiful, high-fidelity macOS desktop application designed to split video fil
 ## Key Features
 
 - **Drag & Drop Import**: Quickly import any video file (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`) by dragging it into the window or using the native macOS file picker.
-- **Dynamic Clip Generation**: Split a single video into any number of clips. The application pre-calculates equal segments to save you time.
-- **Interactive Scrubber & Timeline**: Visually inspect loaded videos, scrub through the playback, and see real-time color-coded range overlays representing each planned clip.
+- **Video Splitter Tool**: Split a single video into any number of clips, with real-time color-coded range overlays on the timeline.
+- **Video Speed Changer Tool**:
+  - Speed up or slow down videos (from `0.25x` to `10.0x`) using custom sliders, inputs, or standard presets.
+  - Multi-tempo audio filter chaining keeps audio pitch and speed perfectly in sync.
+  - Smart fallback runs video-only speedups if the input has no audio track.
 - **Precision Time Syncer**: Sync clip start/end times directly with the video player's current playback position via one-click "Use Current Time" buttons.
 - **Dual Splitting Modes**:
   - **Fast/Lossless (Instant)**: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without re-encoding quality loss.
   - **Frame-Accurate (Precise)**: Re-encodes using H.264/AAC to cut video at the exact millisecond.
-- **Finder Integration**: Open the output directory directly in macOS Finder immediately after splitting.
+- **Finder Integration**: Open the output directory directly in macOS Finder immediately after processing.
 
 ---
 
@@ -84,19 +87,24 @@ Since the app is built locally without an active Apple Developer Team certificat
 
 ## Usage Guide
 
+### General
 1. **Load a Video**: Drag a video file onto the home dropzone, or click **Browse File** to select one.
-2. **Configure Clips**:
-   - In the sidebar, select the number of clips you want to generate.
-   - Adjust the **Start Time** and **End Time** for each clip card:
-     - You can manually enter values in `HH:MM:SS.mmm` format.
-     - Or, play the video, scrub to the desired point, and click the **Use Current Time** icon button next to the input.
-3. **Set Export Options**:
-   - Choose a **Splitting Mode**:
-     - *Fast/Lossless* (retains input quality, splits in <1s)
-     - *Frame-Accurate* (re-encodes to cut at exact frames)
-4. **Generate**: Click **Generate Clips**. 
-5. **Select Output Folder**: A native folder selector will prompt you to choose where to save the generated clips. Select a folder to start.
-6. **Complete**: Watch the progress bar complete, then click **Open in Finder** to retrieve your files.
+2. **Switch Tools**: Use the tab buttons at the top of the sidebar to toggle between **Splitter** and **Speed Changer** modes.
+
+### Video Splitter Mode
+1. **Configure Clips**: In the **Splitter** tab, select the number of clips you want to generate.
+2. **Set Timestamps**: Adjust the **Start Time** and **End Time** for each clip card:
+   - You can manually enter values in `HH:MM:SS.mmm` format.
+   - Or, play the video, scrub to the desired point, and click the **Use Current Time** icon button next to the input.
+3. **Choose Export settings**: Select a **Splitting Mode**:
+   - *Fast/Lossless* (retains input quality, splits in <1s)
+   - *Frame-Accurate* (re-encodes to cut at exact frames)
+4. **Export**: Click **Generate Clips** and select a folder of choice. Click **Open in Finder** upon completion.
+
+### Speed Changer Mode
+1. **Configure Speed**: In the **Speed Changer** tab, select a speed factor (e.g. `2.0x` preset, or adjust the **Custom Speed Factor** slider/numeric input).
+2. **Set Filename**: The target filename is prefilled automatically based on your speed setting (e.g. `video_2.00x.mp4`), but you can customize it as desired.
+3. **Export**: Click **Apply Speed & Export**, select your destination folder, and wait for the conversion to finish.
 
 ---
 

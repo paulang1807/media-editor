@@ -1,13 +1,16 @@
 // Access helpers from global window object
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter } = window.helpers;
 
 // State management
 let videoPath = null;
 let videoName = null;
+let videoBaseName = '';
+let videoExt = 'mp4';
 let videoDuration = 0;
 let outputDir = null;
 let clips = [];
 let activeClipIndex = null; // Track which clip is currently being played/previewed
+let speedMultiplier = 1.0;
 
 // Color palette for clip timelines (Dark mode glowing translucent colors)
 const CLIP_COLORS = [
@@ -45,6 +48,18 @@ const clipsContainer = document.getElementById('clips-container');
 const splitAccuracySelect = document.getElementById('split-accuracy');
 const generateBtn = document.getElementById('generate-btn');
 
+// Sidebar Tabs & Panels
+const tabSplit = document.getElementById('tab-split');
+const tabSpeed = document.getElementById('tab-speed');
+const panelSplit = document.getElementById('panel-split');
+const panelSpeed = document.getElementById('panel-speed');
+
+// Speed Changer Elements
+const speedSlider = document.getElementById('speed-slider');
+const speedInput = document.getElementById('speed-input');
+const speedFilenameInput = document.getElementById('speed-filename-input');
+const speedGenerateBtn = document.getElementById('speed-generate-btn');
+
 // Progress & Overlays
 const progressOverlay = document.getElementById('progress-overlay');
 const progressStatusText = document.getElementById('progress-status');
@@ -60,14 +75,22 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPlayerEvents();
   setupSidebarEvents();
   setupExportEvents();
+  setupTabEvents();
+  setupSpeedChangerEvents();
 });
 
 // 1. File Import Handlers
 function setupFileImportEvents() {
   fileInputBtn.addEventListener('click', async () => {
-    const fileData = await window.electronAPI.selectVideoFile();
-    if (fileData) {
-      loadVideo(fileData.filePath, fileData.name);
+    console.log('Renderer: Browse File button clicked');
+    try {
+      const fileData = await window.electronAPI.selectVideoFile();
+      console.log('Renderer: selectVideoFile IPC returned:', fileData);
+      if (fileData) {
+        loadVideo(fileData.filePath, fileData.name);
+      }
+    } catch (err) {
+      console.error('Renderer: selectVideoFile failed with error:', err);
     }
   });
 
@@ -104,6 +127,10 @@ function loadVideo(filePath, fileName) {
   videoPath = filePath;
   videoName = fileName;
   
+  const lastDot = fileName.lastIndexOf('.');
+  videoBaseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+  videoExt = lastDot !== -1 ? fileName.substring(lastDot + 1) : 'mp4';
+  
   // Set default output directory (null initially, will prompt)
   outputDir = null;
 
@@ -112,6 +139,12 @@ function loadVideo(filePath, fileName) {
   // Use the custom media:// protocol to load file without context restriction
   videoPlayer.src = `media://${filePath}`;
   videoPlayer.load();
+
+  // Reset speed multiplier to 1.0 and update previsualizer
+  speedMultiplier = 1.0;
+  if (speedSlider) speedSlider.value = 1.0;
+  if (speedInput) speedInput.value = 1.0;
+  updateSpeedFilenamePreview();
 
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
@@ -185,9 +218,6 @@ function setupSidebarEvents() {
 
 function generateClipsData(count) {
   const currentCount = clips.length;
-  const lastDot = videoName.lastIndexOf('.');
-  const videoBaseName = lastDot !== -1 ? videoName.substring(0, lastDot) : videoName;
-  const videoExt = lastDot !== -1 ? videoName.substring(lastDot + 1) : 'mp4';
 
   if (count === currentCount) return;
 
@@ -515,4 +545,163 @@ function setupExportEvents() {
   closeResultsBtn.addEventListener('click', () => {
     resultsOverlay.style.display = 'none';
   });
+}
+
+// 6. Tab Toggling Logic
+function setupTabEvents() {
+  tabSplit.addEventListener('click', () => {
+    tabSplit.classList.add('active');
+    tabSpeed.classList.remove('active');
+    panelSplit.classList.add('active');
+    panelSpeed.classList.remove('active');
+  });
+
+  tabSpeed.addEventListener('click', () => {
+    tabSpeed.classList.add('active');
+    tabSplit.classList.remove('active');
+    panelSpeed.classList.add('active');
+    panelSplit.classList.remove('active');
+  });
+}
+
+// 7. Speed Changer Form Logic & Export
+function setupSpeedChangerEvents() {
+  // Sync slider -> input
+  speedSlider.addEventListener('input', () => {
+    const val = parseFloat(speedSlider.value);
+    speedInput.value = val.toFixed(2);
+    speedMultiplier = val;
+    highlightPresetButton(val);
+    updateSpeedFilenamePreview();
+  });
+
+  // Sync input -> slider
+  speedInput.addEventListener('change', () => {
+    let val = parseFloat(speedInput.value);
+    if (isNaN(val) || val <= 0) {
+      val = 1.0;
+      speedInput.value = '1.00';
+    }
+    speedMultiplier = val;
+    
+    // Clamp to slider min/max if possible
+    if (val >= 0.25 && val <= 4.0) {
+      speedSlider.value = val;
+    } else {
+      speedSlider.value = 1.0; // Reset slider position if out of bounds
+    }
+    
+    highlightPresetButton(val);
+    updateSpeedFilenamePreview();
+  });
+
+  // Presets buttons click listeners
+  const presetBtns = document.querySelectorAll('.preset-btn');
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = parseFloat(btn.getAttribute('data-speed'));
+      speedSlider.value = val;
+      speedInput.value = val.toFixed(2);
+      speedMultiplier = val;
+
+      presetBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      updateSpeedFilenamePreview();
+    });
+  });
+
+  // Speed Generate Export
+  speedGenerateBtn.addEventListener('click', async () => {
+    if (!videoPath) {
+      alert('Please load a video first.');
+      return;
+    }
+
+    if (isNaN(speedMultiplier) || speedMultiplier <= 0) {
+      alert('Please enter a valid speed factor greater than 0.');
+      return;
+    }
+
+    const outputName = speedFilenameInput.value.trim();
+    if (!outputName) {
+      alert('Please enter an output file name.');
+      return;
+    }
+
+    // Prompt user for directory (Option C)
+    const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    if (!dir) {
+      // User cancelled
+      return;
+    }
+    outputDir = dir;
+
+    const outputPath = `${dir}/${outputName}`;
+
+    // UI state
+    speedGenerateBtn.disabled = true;
+    speedGenerateBtn.textContent = 'Processing...';
+
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '0%';
+    progressPercentText.textContent = '0%';
+    progressStatusText.textContent = 'Preparing speed change...';
+
+    const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+      if (data.status === 'processing') {
+        progressStatusText.textContent = `Applying speed modifications to "${data.name}"...`;
+        progressProgressBar.style.width = '50%';
+        progressPercentText.textContent = '50%';
+      } else if (data.status === 'done') {
+        progressStatusText.textContent = 'Finished speed conversion!';
+        progressProgressBar.style.width = '100%';
+        progressPercentText.textContent = '100%';
+      } else if (data.status === 'error') {
+        progressStatusText.textContent = `Error: ${data.error}`;
+      }
+    });
+
+    try {
+      const result = await window.electronAPI.changeVideoSpeed(videoPath, outputPath, speedMultiplier);
+      removeProgressListener();
+      speedGenerateBtn.disabled = false;
+      speedGenerateBtn.textContent = 'Apply Speed & Export';
+      progressOverlay.style.display = 'none';
+
+      if (result.success) {
+        resultsOverlay.style.display = 'flex';
+      } else {
+        alert(`Failed to speed change video: ${result.message}`);
+      }
+    } catch (error) {
+      removeProgressListener();
+      speedGenerateBtn.disabled = false;
+      speedGenerateBtn.textContent = 'Apply Speed & Export';
+      progressOverlay.style.display = 'none';
+      alert(`Unexpected error: ${error.message}`);
+    }
+  });
+}
+
+function highlightPresetButton(val) {
+  const presetBtns = document.querySelectorAll('.preset-btn');
+  presetBtns.forEach(btn => {
+    const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
+    if (Math.abs(btnSpeed - val) < 0.01) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function updateSpeedFilenamePreview() {
+  if (!speedFilenameInput) return;
+  if (!videoBaseName) {
+    speedFilenameInput.value = '';
+    return;
+  }
+  speedFilenameInput.value = `${videoBaseName}_${speedMultiplier.toFixed(2)}x.${videoExt}`;
 }

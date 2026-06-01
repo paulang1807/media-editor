@@ -87,37 +87,95 @@
 
       <!-- Right Column: Sidebar Settings -->
       <div class="sidebar">
-        <!-- Clips Controller -->
-        <div class="card sidebar-card">
-          <div class="sidebar-header">
-            <h3>Clip Settings</h3>
-            <div class="clip-counter">
-              <label for="clip-count">Number of clips:</label>
-              <input type="number" id="clip-count" min="1" max="8" value="2" class="num-input">
+        
+        <!-- Tab Navigation -->
+        <div class="sidebar-tabs">
+          <button id="tab-split" class="tab-btn active">Splitter</button>
+          <button id="tab-speed" class="tab-btn">Speed Changer</button>
+        </div>
+
+        <!-- Tool Panel 1: Splitter -->
+        <div id="panel-split" class="tool-panel active">
+          <!-- Clips Controller -->
+          <div class="card sidebar-card" style="margin-bottom: 20px;">
+            <div class="sidebar-header">
+              <h3>Clip Settings</h3>
+              <div class="clip-counter">
+                <label for="clip-count">Number of clips:</label>
+                <input type="number" id="clip-count" min="1" max="8" value="2" class="num-input">
+              </div>
+            </div>
+
+            <!-- Dynamic Clip Cards Container -->
+            <div class="clips-scroll-area" id="clips-container">
+              <!-- Rendered by JS -->
             </div>
           </div>
 
-          <!-- Dynamic Clip Cards Container -->
-          <div class="clips-scroll-area" id="clips-container">
-            <!-- Rendered by JS -->
+          <!-- Export Settings -->
+          <div class="card sidebar-card export-card">
+            <h3>Export Settings</h3>
+            
+            <div class="form-group">
+              <label for="split-accuracy">Splitting Mode</label>
+              <select id="split-accuracy" class="select-input">
+                <option value="fast">Fast/Lossless (No Re-encoding)</option>
+                <option value="accurate">Frame-Accurate (Re-encoded)</option>
+              </select>
+              <small class="help-text">Fast mode splits instantly but may snap to the nearest keyframe. Accurate mode splits at the exact millisecond but takes longer.</small>
+            </div>
+
+            <button id="generate-btn" class="btn btn-primary btn-lg btn-block">Generate Clips</button>
           </div>
         </div>
 
-        <!-- Export Settings -->
-        <div class="card sidebar-card export-card">
-          <h3>Export Settings</h3>
-          
-          <div class="form-group">
-            <label for="split-accuracy">Splitting Mode</label>
-            <select id="split-accuracy" class="select-input">
-              <option value="fast">Fast/Lossless (No Re-encoding)</option>
-              <option value="accurate">Frame-Accurate (Re-encoded)</option>
-            </select>
-            <small class="help-text">Fast mode splits instantly but may snap to the nearest keyframe. Accurate mode splits at the exact millisecond but takes longer.</small>
+        <!-- Tool Panel 2: Speed Changer -->
+        <div id="panel-speed" class="tool-panel">
+          <!-- Speed Settings Card -->
+          <div class="card sidebar-card" style="margin-bottom: 20px;">
+            <div class="sidebar-header">
+              <h3>Speed Settings</h3>
+            </div>
+            
+            <div class="speed-changer-body">
+              <!-- Speed Presets Grid -->
+              <div class="speed-presets-label">Speed Presets</div>
+              <div class="speed-presets-grid">
+                <button class="preset-btn" data-speed="0.5">0.5x</button>
+                <button class="preset-btn" data-speed="0.75">0.75x</button>
+                <button class="preset-btn active" data-speed="1.0">1.0x</button>
+                <button class="preset-btn" data-speed="1.25">1.25x</button>
+                <button class="preset-btn" data-speed="1.5">1.5x</button>
+                <button class="preset-btn" data-speed="2.0">2.0x</button>
+                <button class="preset-btn" data-speed="3.0">3.0x</button>
+                <button class="preset-btn" data-speed="4.0">4.0x</button>
+              </div>
+
+              <!-- Custom Slider / Number Field -->
+              <div class="form-group" style="margin-top: 20px;">
+                <label>Custom Speed Factor</label>
+                <div class="speed-slider-row">
+                  <input type="range" id="speed-slider" min="0.25" max="4.0" step="0.25" value="1.0" class="slider-input">
+                  <input type="number" id="speed-input" min="0.1" max="10.0" step="0.1" value="1.0" class="num-input speed-num-input">
+                </div>
+              </div>
+
+              <!-- Export Filename Pre-visualization -->
+              <div class="form-group" style="margin-top: 20px;">
+                <label>Export File Name</label>
+                <input type="text" id="speed-filename-input" class="clip-name-input" placeholder="Output video file name">
+              </div>
+            </div>
           </div>
 
-          <button id="generate-btn" class="btn btn-primary btn-lg btn-block">Generate Clips</button>
+          <!-- Speed Export Card -->
+          <div class="card sidebar-card export-card">
+            <h3>Export Settings</h3>
+            <small class="help-text" style="display: block; margin-bottom: 12px;">Applying speed adjustments requires re-encoding the video and audio streams to preserve synchronization.</small>
+            <button id="speed-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Speed & Export</button>
+          </div>
         </div>
+
       </div>
 
     </div>

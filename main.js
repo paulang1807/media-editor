@@ -4,6 +4,36 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
+const { getAudioSpeedFilter } = require('./helpers.js');
+
+// Redirect stdout/stderr console logs to app.log file in User Data folder for troubleshooting
+try {
+  // Must check if app is ready or use path resolution after ready
+  // app.getPath('userData') is available even before app ready
+  const logDir = app.getPath('userData');
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  const logPath = path.join(logDir, 'app.log');
+  const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+
+  const originalLog = console.log;
+  const originalError = console.error;
+
+  console.log = (...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    logStream.write(`[INFO] [${new Date().toLocaleTimeString()}] ${msg}\n`);
+    originalLog.apply(console, args);
+  };
+
+  console.error = (...args) => {
+    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ');
+    logStream.write(`[ERROR] [${new Date().toLocaleTimeString()}] ${msg}\n`);
+    originalError.apply(console, args);
+  };
+} catch (e) {
+  // Ignore
+}
 
 // Register custom protocol 'media' to allow loading local files in <video> player
 // before the app is ready.
@@ -80,25 +110,34 @@ app.on('window-all-closed', () => {
 
 // IPC Handler: File selector for video file
 ipcMain.handle('select-video-file', async () => {
-  if (!mainWindow) return null;
-
-  const result = await dialog.showOpenDialog(mainWindow, {
-    title: 'Select Video File',
-    filters: [
-      { name: 'Video Files', extensions: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'm4v'] }
-    ],
-    properties: ['openFile']
-  });
-
-  if (result.canceled || result.filePaths.length === 0) {
+  console.log('Main Process: select-video-file IPC handler triggered');
+  if (!mainWindow) {
+    console.error('Main Process: select-video-file failed because mainWindow is null');
     return null;
   }
 
-  const filePath = result.filePaths[0];
-  return {
-    filePath,
-    name: path.basename(filePath)
-  };
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Video File',
+      filters: [
+        { name: 'Video Files', extensions: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'm4v'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const filePath = result.filePaths[0];
+    return {
+      filePath,
+      name: path.basename(filePath)
+    };
+  } catch (err) {
+    console.error('Main Process: select-video-file dialog error:', err);
+    return null;
+  }
 });
 
 // IPC Handler: Save directory selector
@@ -214,6 +253,122 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
   }
 
   return { success: true, message: 'All clips generated successfully!' };
+});
+
+// IPC Handler: Video speedup execution
+ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multiplier) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  const videoFilter = `setpts=${(1 / multiplier).toFixed(6)}*PTS`;
+  const audioFilter = getAudioSpeedFilter(multiplier);
+  const filterComplexWithAudio = `[0:v]${videoFilter}[v];[0:a]${audioFilter}[a]`;
+
+  const argsWithAudio = [
+    '-i', inputPath,
+    '-filter_complex', filterComplexWithAudio,
+    '-map', '[v]',
+    '-map', '[a]',
+    '-c:v', 'libx264',
+    '-preset', 'superfast',
+    '-crf', '20',
+    '-c:a', 'aac',
+    '-b:a', '192k',
+    '-y',
+    outputPath
+  ];
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  try {
+    await runFFmpegCommand(argsWithAudio);
+    
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Speed change completed successfully!' };
+  } catch (error) {
+    const errorStr = error.message.toLowerCase();
+    
+    // Check if the error is due to missing audio stream
+    if (
+      errorStr.includes('matches no streams') || 
+      errorStr.includes('no audio') || 
+      errorStr.includes('invalid stream') ||
+      errorStr.includes('specifier \':a\'')
+    ) {
+      console.log('Video does not have audio stream. Retrying with video-only filters...');
+      
+      const argsVideoOnly = [
+        '-i', inputPath,
+        '-vf', videoFilter,
+        '-an',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-crf', '20',
+        '-y',
+        outputPath
+      ];
+
+      try {
+        await runFFmpegCommand(argsVideoOnly);
+        
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'done'
+        });
+        return { success: true, message: 'Speed change completed successfully (video-only)!' };
+      } catch (videoError) {
+        console.error('Video-only speed change failed:', videoError);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'error',
+          error: videoError.message
+        });
+        return { success: false, message: `Failed to speed up video: ${videoError.message}` };
+      }
+    } else {
+      console.error('Speed change failed:', error);
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+      return { success: false, message: `Failed to speed up video: ${error.message}` };
+    }
+  }
 });
 
 /**
