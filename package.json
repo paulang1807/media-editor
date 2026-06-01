@@ -1,0 +1,47 @@
+{
+  "name": "media-editor",
+  "version": "1.0.0",
+  "description": "macOS Media Editor - Video Splitting Application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "package": "electron-builder --mac dir",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "electron",
+    "video",
+    "editor",
+    "split",
+    "ffmpeg"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.9",
+    "electron-builder": "^24.13.3",
+    "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "build": {
+    "appId": "com.mediaeditor.app",
+    "productName": "Media Editor",
+    "directories": {
+      "output": "dist"
+    },
+    "mac": {
+      "target": "dir",
+      "category": "public.app-category.video"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*",
+      "!.git/**/*",
+      "!.vitest/**/*",
+      "!helpers.test.js"
+    ]
+  }
+}

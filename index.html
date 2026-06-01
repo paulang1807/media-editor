@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Splitter & Editor</title>
+  <!-- Google Fonts for Modern Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Empty State: Drag & Drop Video -->
+    <div id="empty-state" class="empty-state">
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-content">
+          <div class="drop-icon">
+            <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+          </div>
+          <h2>Import Video</h2>
+          <p>Drag and drop a video file here, or click to browse</p>
+          <button id="file-input-btn" class="btn btn-primary">Browse File</button>
+          <span class="file-types">Supports MP4, MOV, MKV, AVI, WEBM</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Workspace: Video Editor Grid -->
+    <div id="editor-workspace" class="editor-workspace" style="display: none;">
+      
+      <!-- Left Column: Video Preview and Timeline -->
+      <div class="main-content">
+        <div class="card player-card">
+          <div class="video-container">
+            <video id="video-player"></video>
+          </div>
+          
+          <div class="player-controls">
+            <!-- Play/Pause & Time -->
+            <div class="controls-row">
+              <button id="play-pause-btn" class="control-btn" title="Play/Pause (Space)">
+                <svg id="play-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <svg id="pause-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display: none;">
+                  <rect x="6" y="4" width="4" height="16"></rect>
+                  <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+              </button>
+              
+              <div class="time-display">
+                <span id="current-time-display">00:00:00.000</span>
+                <span class="time-separator">/</span>
+                <span id="total-time-display">00:00:00.000</span>
+              </div>
+            </div>
+
+            <!-- Custom Interactive Timeline -->
+            <div class="timeline-container" id="timeline-container">
+              <div class="timeline-ranges-container" id="timeline-ranges-container">
+                <!-- Dynamic translucent color range overlays representing clips go here -->
+              </div>
+              <input type="range" id="timeline-scrubber" min="0" max="100" value="0" step="any" class="scrubber">
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Info Summary -->
+        <div class="card info-card">
+          <div class="info-group">
+            <span class="info-label">Current File</span>
+            <span id="loaded-file-name" class="info-value">video.mp4</span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">Total Duration</span>
+            <span id="loaded-file-duration" class="info-value">00:00:00.000</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Sidebar Settings -->
+      <div class="sidebar">
+        <!-- Clips Controller -->
+        <div class="card sidebar-card">
+          <div class="sidebar-header">
+            <h3>Clip Settings</h3>
+            <div class="clip-counter">
+              <label for="clip-count">Number of clips:</label>
+              <input type="number" id="clip-count" min="1" max="8" value="2" class="num-input">
+            </div>
+          </div>
+
+          <!-- Dynamic Clip Cards Container -->
+          <div class="clips-scroll-area" id="clips-container">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Export Settings -->
+        <div class="card sidebar-card export-card">
+          <h3>Export Settings</h3>
+          
+          <div class="form-group">
+            <label for="split-accuracy">Splitting Mode</label>
+            <select id="split-accuracy" class="select-input">
+              <option value="fast">Fast/Lossless (No Re-encoding)</option>
+              <option value="accurate">Frame-Accurate (Re-encoded)</option>
+            </select>
+            <small class="help-text">Fast mode splits instantly but may snap to the nearest keyframe. Accurate mode splits at the exact millisecond but takes longer.</small>
+          </div>
+
+          <button id="generate-btn" class="btn btn-primary btn-lg btn-block">Generate Clips</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Progress Processing Overlay -->
+  <div id="progress-overlay" class="overlay" style="display: none;">
+    <div class="overlay-card">
+      <div class="spinner"></div>
+      <h3 id="progress-status">Processing clips...</h3>
+      <div class="progress-bar-container">
+        <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+      </div>
+      <div id="progress-percent" class="progress-percent">0%</div>
+    </div>
+  </div>
+
+  <!-- Export Results Overlay (Success Modal) -->
+  <div id="results-overlay" class="overlay" style="display: none;">
+    <div class="overlay-card success-card">
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <h2>Export Complete!</h2>
+      <p>All clips have been successfully split and exported.</p>
+      <div class="results-actions">
+        <button id="open-finder-btn" class="btn btn-primary">Open in Finder</button>
+        <button id="close-results-btn" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="helpers.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
