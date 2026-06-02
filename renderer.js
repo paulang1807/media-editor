@@ -36,6 +36,7 @@ const CLIP_COLORS = [
 // DOM Elements
 const dropZone = document.getElementById('drop-zone');
 const fileInputBtn = document.getElementById('file-input-btn');
+const changeFileBtn = document.getElementById('change-file-btn');
 const emptyState = document.getElementById('empty-state');
 const editorWorkspace = document.getElementById('editor-workspace');
 const videoPlayer = document.getElementById('video-player');
@@ -140,6 +141,21 @@ function setupFileImportEvents() {
     }
   });
 
+  if (changeFileBtn) {
+    changeFileBtn.addEventListener('click', async () => {
+      console.log('Renderer: Change Video button clicked');
+      try {
+        const fileData = await window.electronAPI.selectVideoFile();
+        console.log('Renderer: selectVideoFile IPC returned:', fileData);
+        if (fileData) {
+          loadVideo(fileData.filePath, fileData.name);
+        }
+      } catch (err) {
+        console.error('Renderer: selectVideoFile failed with error:', err);
+      }
+    });
+  }
+
   // Drag and Drop
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -216,6 +232,10 @@ function onVideoMetadataLoaded() {
 
   // Initialize crop normalized coords
   cropNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+
+  if (tabCrop && tabCrop.classList.contains('active')) {
+    setTimeout(updateCropOverlayLayout, 50);
+  }
 }
 
 // 2. Video Player Event & Scrubber Setup
