@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative } = helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex } = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -155,6 +155,31 @@ describe('Time conversion and validation helpers', () => {
 
     test('handles empty or null parameters gracefully', () => {
       expect(mapCropToNative(null, null, 100, 100)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
+    });
+  });
+
+  describe('getSpeedRampFilterComplex', () => {
+    test('generates correct filter complexes with audio', () => {
+      const complexStr = getSpeedRampFilterComplex(10, 2.0, true);
+      // Symmetrical ramp speed multipliers: 1.25, 1.75, 2.0, 1.75, 1.25
+      // 10 sec / 5 slices = 2 sec per slice
+      expect(complexStr).toContain('trim=start=0.000000:end=2.000000,setpts=PTS-STARTPTS,setpts=0.800000*PTS[v0]');
+      expect(complexStr).toContain('atrim=start=0.000000:end=2.000000,asetpts=PTS-STARTPTS,atempo=1.25[a0]');
+      expect(complexStr).toContain('trim=start=2.000000:end=4.000000,setpts=PTS-STARTPTS,setpts=0.571429*PTS[v1]');
+      expect(complexStr).toContain('trim=start=4.000000:end=6.000000,setpts=PTS-STARTPTS,setpts=0.500000*PTS[v2]');
+      expect(complexStr).toContain('[v0][a0][v1][a1][v2][a2][v3][a3][v4][a4]concat=n=5:v=1:a=1[v][a]');
+    });
+
+    test('generates correct filter complexes without audio', () => {
+      const complexStr = getSpeedRampFilterComplex(10, 2.0, false);
+      expect(complexStr).toContain('trim=start=0.000000:end=2.000000,setpts=PTS-STARTPTS,setpts=0.800000*PTS[v0]');
+      expect(complexStr).not.toContain('atrim');
+      expect(complexStr).toContain('[v0][v1][v2][v3][v4]concat=n=5:v=1:a=0[v]');
+    });
+
+    test('handles invalid inputs gracefully by using defaults', () => {
+      const complexStr = getSpeedRampFilterComplex('invalid', -1, false);
+      expect(complexStr).toContain('trim=start=0.000000:end=0.200000');
     });
   });
 

@@ -178,6 +178,71 @@
     return { x, y, width: w, height: h };
   }
 
+  /**
+   * Generates the complex filter graph for a 5-slice speed ramp.
+   * @param {number} duration - Video duration in seconds.
+   * @param {number} peakSpeed - Peak speed factor.
+   * @param {boolean} hasAudio - Whether video contains audio.
+   * @returns {string} The FFmpeg filter_complex filter graph.
+   */
+  function getSpeedRampFilterComplex(duration, peakSpeed, hasAudio) {
+    if (typeof duration !== 'number' || isNaN(duration) || duration <= 0) {
+      duration = 1.0;
+    }
+    if (typeof peakSpeed !== 'number' || isNaN(peakSpeed) || peakSpeed <= 0) {
+      peakSpeed = 1.0;
+    }
+
+    const slices = 5;
+    const sliceDuration = duration / slices;
+    
+    // Symmetrical bell-curve speed multipliers
+    const multipliers = [
+      1.0 + 0.25 * (peakSpeed - 1.0),
+      1.0 + 0.75 * (peakSpeed - 1.0),
+      peakSpeed,
+      1.0 + 0.75 * (peakSpeed - 1.0),
+      1.0 + 0.25 * (peakSpeed - 1.0)
+    ];
+
+    let filterParts = [];
+    let concatInputs = '';
+
+    for (let i = 0; i < slices; i++) {
+      const start = (i * sliceDuration).toFixed(6);
+      const end = ((i + 1) * sliceDuration).toFixed(6);
+      // Ensure multiplier is positive and non-zero to avoid division-by-zero
+      const m = Math.max(0.05, multipliers[i]);
+      const setptsFactor = (1 / m).toFixed(6);
+
+      // Video slice
+      filterParts.push(`[0:v]trim=start=${start}:end=${end},setpts=PTS-STARTPTS,setpts=${setptsFactor}*PTS[v${i}]`);
+
+      // Audio slice (if present)
+      if (hasAudio) {
+        const audioFilter = getAudioSpeedFilter(m);
+        filterParts.push(`[0:a]atrim=start=${start}:end=${end},asetpts=PTS-STARTPTS,${audioFilter}[a${i}]`);
+      }
+    }
+
+    // Interleave concat input streams (v0, a0, v1, a1, ...)
+    for (let i = 0; i < slices; i++) {
+      concatInputs += `[v${i}]`;
+      if (hasAudio) {
+        concatInputs += `[a${i}]`;
+      }
+    }
+
+    // Concatenate all slices
+    if (hasAudio) {
+      filterParts.push(`${concatInputs}concat=n=${slices}:v=1:a=1[v][a]`);
+    } else {
+      filterParts.push(`${concatInputs}concat=n=${slices}:v=1:a=0[v]`);
+    }
+
+    return filterParts.join(';');
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -185,7 +250,8 @@
       timestampToSeconds,
       isValidTimestampFormat,
       getAudioSpeedFilter,
-      mapCropToNative
+      mapCropToNative,
+      getSpeedRampFilterComplex
     };
   } else {
     window.helpers = {
@@ -193,7 +259,8 @@
       timestampToSeconds,
       isValidTimestampFormat,
       getAudioSpeedFilter,
-      mapCropToNative
+      mapCropToNative,
+      getSpeedRampFilterComplex
     };
   }
 })();

@@ -11,9 +11,11 @@ A beautiful, high-fidelity macOS desktop application designed to split video fil
 - **Drag & Drop Import**: Quickly import any video file (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`) by dragging it into the window or using the native macOS file picker.
 - **Video Splitter Tool**: Split a single video into any number of clips, with real-time color-coded range overlays on the timeline.
 - **Video Speed Changer Tool**:
+  - **Speed Modes**: Toggle between **Constant Speed** (uniform speed change) and **Speed Ramp** (progressive symmetrical bell-curve acceleration/deceleration).
   - Speed up or slow down videos (from `0.25x` to `10.0x`) using custom sliders, inputs, or standard presets.
   - Multi-tempo audio filter chaining keeps audio pitch and speed perfectly in sync.
-  - Smart fallback runs video-only speedups if the input has no audio track.
+  - Symmetrical 5-slice speed ramping splits, trims, scales, and concatenates audio/video streams dynamically.
+  - Smart fallback runs video-only speedups or ramps if the input has no audio track.
 - **Video Frame Cropper Tool**:
   - Interactively select regions of the video frame using a draggable/resizable visual crop box.
   - Lock aspect ratios to standard presets (`Freeform`, `1:1 Square`, `16:9 HD`, `9:16 Shorts`, `4:3 TV`).
@@ -111,9 +113,10 @@ Since the app is built locally without an active Apple Developer Team certificat
 ![Video Splitter UI](./split_feature_ui.png)
 
 ### Speed Changer Mode
-1. **Configure Speed**: In the **Speed Changer** tab, select a speed factor (e.g. `2.0x` preset, or adjust the **Custom Speed Factor** slider/numeric input).
-2. **Set Filename**: The target filename is prefilled automatically based on your speed setting (e.g. `video_2.00x.mp4`), but you can customize it as desired.
-3. **Export**: Click **Apply Speed & Export**, select your destination folder, and wait for the conversion to finish.
+1. **Select Speed Mode**: Choose between **Constant Speed** (standard uniform speed change) and **Speed Ramp** (symmetrical bell-curve acceleration/deceleration).
+2. **Configure Speed**: Select a speed factor (e.g. `2.0x` preset, or adjust the **Custom Speed Factor** slider/numeric input). In Speed Ramp mode, this sets the peak speed multiplier in the middle of the clip.
+3. **Set Filename**: The target filename is prefilled automatically based on your speed setting (e.g. `video_2.00x.mp4` for constant speed, or `video_2.00x_ramp.mp4` for speed ramping), but you can customize it as desired.
+4. **Export**: Click **Apply Speed & Export**, select your destination folder, and wait for the conversion to finish.
 
 ![Video Speed Changer UI](./speed_feature_ui.png)
 
@@ -132,7 +135,7 @@ Since the app is built locally without an active Apple Developer Team certificat
 
 ## Testing
 
-This project uses Vitest to verify all duration calculations and timestamp conversions. The test suite is located in `./helpers.test.js` and can be run with:
+This project uses Vitest to verify duration calculations, timestamp conversions, and speed-ramp complex filter graph generation. The test suite is located in `./helpers.test.js` and can be run with:
 ```bash
 npm run test
 ```

@@ -71,6 +71,9 @@ const speedSlider = document.getElementById('speed-slider');
 const speedInput = document.getElementById('speed-input');
 const speedFilenameInput = document.getElementById('speed-filename-input');
 const speedGenerateBtn = document.getElementById('speed-generate-btn');
+const btnSpeedModeConstant = document.getElementById('speed-mode-constant');
+const btnSpeedModeRamp = document.getElementById('speed-mode-ramp');
+let speedMode = 'constant';
 
 // Cropper UI Elements
 const cropOverlayContainer = document.getElementById('crop-overlay-container');
@@ -202,10 +205,13 @@ function loadVideo(filePath, fileName) {
   videoPlayer.src = `media://${filePath}`;
   videoPlayer.load();
 
-  // Reset speed multiplier to 1.0 and update previsualizer
+  // Reset speed multiplier to 1.0, speed mode to constant, and update previsualizer
   speedMultiplier = 1.0;
+  speedMode = 'constant';
   if (speedSlider) speedSlider.value = 1.0;
   if (speedInput) speedInput.value = 1.0;
+  if (btnSpeedModeConstant) btnSpeedModeConstant.classList.add('active');
+  if (btnSpeedModeRamp) btnSpeedModeRamp.classList.remove('active');
   updateSpeedFilenamePreview();
 
   // Reset cropping settings
@@ -686,11 +692,29 @@ function setupSpeedChangerEvents() {
     updateSpeedFilenamePreview();
   });
 
+  // Speed Mode Selector Click Event Listeners
+  if (btnSpeedModeConstant && btnSpeedModeRamp) {
+    btnSpeedModeConstant.addEventListener('click', () => {
+      speedMode = 'constant';
+      btnSpeedModeConstant.classList.add('active');
+      btnSpeedModeRamp.classList.remove('active');
+      updateSpeedFilenamePreview();
+    });
+
+    btnSpeedModeRamp.addEventListener('click', () => {
+      speedMode = 'ramp';
+      btnSpeedModeRamp.classList.add('active');
+      btnSpeedModeConstant.classList.remove('active');
+      updateSpeedFilenamePreview();
+    });
+  }
+
   // Presets buttons click listeners
-  const presetBtns = document.querySelectorAll('.preset-btn');
+  const presetBtns = panelSpeed.querySelectorAll('.speed-presets-grid .preset-btn');
   presetBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const val = parseFloat(btn.getAttribute('data-speed'));
+      if (isNaN(val)) return;
       speedSlider.value = val;
       speedInput.value = val.toFixed(2);
       speedMultiplier = val;
@@ -755,7 +779,7 @@ function setupSpeedChangerEvents() {
     });
 
     try {
-      const result = await window.electronAPI.changeVideoSpeed(videoPath, outputPath, speedMultiplier);
+      const result = await window.electronAPI.changeVideoSpeed(videoPath, outputPath, speedMultiplier, speedMode, videoDuration);
       removeProgressListener();
       speedGenerateBtn.disabled = false;
       speedGenerateBtn.textContent = 'Apply Speed & Export';
@@ -777,9 +801,10 @@ function setupSpeedChangerEvents() {
 }
 
 function highlightPresetButton(val) {
-  const presetBtns = document.querySelectorAll('.preset-btn');
+  const presetBtns = panelSpeed.querySelectorAll('.speed-presets-grid .preset-btn');
   presetBtns.forEach(btn => {
     const btnSpeed = parseFloat(btn.getAttribute('data-speed'));
+    if (isNaN(btnSpeed)) return;
     if (Math.abs(btnSpeed - val) < 0.01) {
       btn.classList.add('active');
     } else {
@@ -794,7 +819,8 @@ function updateSpeedFilenamePreview() {
     speedFilenameInput.value = '';
     return;
   }
-  speedFilenameInput.value = `${videoBaseName}_${speedMultiplier.toFixed(2)}x.${videoExt}`;
+  const suffix = speedMode === 'ramp' ? '_ramp' : '';
+  speedFilenameInput.value = `${videoBaseName}_${speedMultiplier.toFixed(2)}x${suffix}.${videoExt}`;
 }
 
 // Cropper UI and Interaction Logics

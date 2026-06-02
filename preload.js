@@ -32,8 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {number} multiplier - Speed multiplier (e.g. 2.0).
    * @returns {Promise<{ success: boolean, message: string, error?: string }>}
    */
-  changeVideoSpeed: (inputPath, outputPath, multiplier) =>
-    ipcRenderer.invoke('change-video-speed', inputPath, outputPath, multiplier),
+  changeVideoSpeed: (inputPath, outputPath, multiplier, speedMode, duration) =>
+    ipcRenderer.invoke('change-video-speed', inputPath, outputPath, multiplier, speedMode, duration),
 
   /**
    * Triggers the video cropping process in the main process.

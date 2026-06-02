@@ -4,7 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
-const { getAudioSpeedFilter } = require('./helpers.js');
+const { getAudioSpeedFilter, getSpeedRampFilterComplex } = require('./helpers.js');
 
 // Redirect stdout/stderr console logs to app.log file in User Data folder for troubleshooting
 try {
@@ -104,9 +104,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 // IPC Handler: File selector for video file
@@ -257,7 +255,7 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
 });
 
 // IPC Handler: Video speedup execution
-ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multiplier) => {
+ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multiplier, speedMode, duration) => {
   if (!fs.existsSync(inputPath)) {
     return { success: false, message: 'Input video file does not exist.' };
   }
@@ -278,13 +276,18 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
     // Ignore
   }
 
-  const videoFilter = `setpts=${(1 / multiplier).toFixed(6)}*PTS`;
-  const audioFilter = getAudioSpeedFilter(multiplier);
-  const filterComplexWithAudio = `[0:v]${videoFilter}[v];[0:a]${audioFilter}[a]`;
+  let filterComplex;
+  if (speedMode === 'ramp') {
+    filterComplex = getSpeedRampFilterComplex(duration, multiplier, true);
+  } else {
+    const videoFilter = `setpts=${(1 / multiplier).toFixed(6)}*PTS`;
+    const audioFilter = getAudioSpeedFilter(multiplier);
+    filterComplex = `[0:v]${videoFilter}[v];[0:a]${audioFilter}[a]`;
+  }
 
   const argsWithAudio = [
     '-i', inputPath,
-    '-filter_complex', filterComplexWithAudio,
+    '-filter_complex', filterComplex,
     '-map', '[v]',
     '-map', '[a]',
     '-c:v', 'libx264',
@@ -322,13 +325,22 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
       errorStr.includes('matches no streams') || 
       errorStr.includes('no audio') || 
       errorStr.includes('invalid stream') ||
-      errorStr.includes('specifier \':a\'')
+      errorStr.includes('specifier \':a\'') ||
+      errorStr.includes('stream copy')
     ) {
       console.log('Video does not have audio stream. Retrying with video-only filters...');
       
+      let filterVideoOnly;
+      if (speedMode === 'ramp') {
+        filterVideoOnly = getSpeedRampFilterComplex(duration, multiplier, false);
+      } else {
+        filterVideoOnly = `[0:v]setpts=${(1 / multiplier).toFixed(6)}*PTS[v]`;
+      }
+
       const argsVideoOnly = [
         '-i', inputPath,
-        '-vf', videoFilter,
+        '-filter_complex', filterVideoOnly,
+        '-map', '[v]',
         '-an',
         '-c:v', 'libx264',
         '-preset', 'superfast',
