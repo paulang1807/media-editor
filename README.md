@@ -1,77 +1,93 @@
-# macOS Media Splitter & Editor
+# macOS Media Editor
 
-A beautiful, high-fidelity macOS desktop application designed to split video files into multiple clips quickly and losslessly. Built on top of Electron, this application provides a native macOS dark-mode user experience with interactive timeline scrubbers, dynamic clip-range coloring, and high-performance ffmpeg operations.
+A beautiful, high-fidelity macOS desktop application designed to edit and split video and image files quickly and losslessly. Built on top of Electron, this application provides a native macOS dark-mode user experience with interactive timeline scrubbers, canvas-based image manipulators, dynamic clip-range overlays, and high-performance FFmpeg operations.
 
-![macOS Media Splitter & Editor](./split_feature_ui.png)
+![macOS Media Editor](./split_feature_ui.png)
 
 ---
 
-## Key Features
+## App Sections & Key Features
 
-- **Drag & Drop Import**: Quickly import any video file (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`) by dragging it into the window or using the native macOS file picker.
-- **Video Splitter Tool**: Split a single video into any number of clips, with real-time color-coded range overlays on the timeline.
-- **Video Speed Changer Tool**:
-  - **Speed Modes**: Toggle between **Constant Speed** (uniform speed change) and **Speed Ramp** (progressive symmetrical bell-curve acceleration/deceleration).
-  - Speed up or slow down videos (from `0.25x` to `10.0x`) using custom sliders, inputs, or standard presets.
-  - Multi-tempo audio filter chaining keeps audio pitch and speed perfectly in sync.
-  - Symmetrical 5-slice speed ramping splits, trims, scales, and concatenates audio/video streams dynamically.
-  - Smart fallback runs video-only speedups or ramps if the input has no audio track.
-- **Video Frame Cropper Tool**:
-  - Interactively select regions of the video frame using a draggable/resizable visual crop box.
-  - Lock aspect ratios to standard presets (`Freeform`, `1:1 Square`, `16:9 HD`, `9:16 Shorts`, `4:3 TV`).
-  - Enter precise native pixel coordinates (X, Y, Width, Height) directly using the coordinate inputs.
-  - Re-encodes video using H.264 with an automatic audio fallback if the file has no audio stream.
-- **Precision Time Syncer**: Sync clip start/end times directly with the video player's current playback position via one-click "Use Current Time" buttons.
-- **Dual Splitting Modes**:
-  - **Fast/Lossless (Instant)**: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without re-encoding quality loss.
-  - **Frame-Accurate (Precise)**: Re-encodes using H.264/AAC to cut video at the exact millisecond.
-- **Finder Integration**: Open the output directory directly in macOS Finder immediately after processing.
+### 🎬 Video Editor Section
+The Video Editor provides high-speed, interactive tools to manage and modify video files:
+*   **Drag & Drop Import**: Quickly import any video file (`.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`) by dragging it into the window or using the native macOS file picker.
+*   **Video Splitter Tool**: Split a single video into any number of clips, with real-time color-coded range overlays on the timeline and precise "Use Current Time" timestamp sync.
+*   **Video Speed Changer Tool**:
+    *   *Constant Speed*: Standard uniform speed multiplier (from `0.25x` to `10.0x`).
+    *   *Speed Ramp*: Symmetrical progressive bell-curve acceleration/deceleration using custom 5-slice FFmpeg speed filters.
+    *   *Sync Pitch*: Audio pitch and speed stay perfectly synchronized.
+    *   *Video-only Fallback*: Runs speedups automatically on videos without audio streams.
+*   **Video Frame Cropper Tool**:
+    *   Interactively adjust the crop region on the video frame using a draggable/resizable overlay.
+    *   Aspect ratio lock presets (`Freeform`, `1:1 Square`, `16:9 HD`, `9:16 Portrait`, `4:3 TV`).
+    *   Enter precise manual pixel coordinates (X, Y, Width, Height) directly.
+*   **Dual Export Modes**:
+    *   *Fast/Lossless (Instant)*: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without quality loss.
+    *   *Frame-Accurate (Precise)*: Re-encodes using H.264/AAC to cut video at the exact millisecond.
+
+### 🖼️ Image Editor Section
+A fully featured client-side canvas image editor:
+*   **Drag & Drop Import**: Import images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`) by dragging or browsing files.
+*   **Precision Rotation & Mirroring**:
+    *   Rotate images interactively using a visual circular rotation handle.
+    *   Fine-tune using a slider or entering precise degrees (`-360°` to `360°`).
+    *   Quick rotation buttons (`↺ 90°` / `90° ↻`) and mirroring flips (horizontal/vertical).
+    *   Calculates rotated canvas bounds dynamically using automated helper functions to ensure no pixel clipping.
+*   **Draggable Crop Box Overlay**:
+    *   Dashed visual crop frame with four corner handles, dimmed outer margins, and aspect ratio constraint snapping (`Free`, `1:1`, `16:9`).
+    *   Synchronized manual input fields for X, Y, Width, and Height.
+*   **Pixel-Perfect Export**: Exports the rotated and cropped region directly onto a clean canvas buffer and saves it as a high-fidelity image file to a chosen directory.
+
+### 🎵 Audio Editor Section
+*   A placeholder tab showing a premium **"Coming Soon"** splash screen.
+*   Includes a beautiful glowing CSS-animated bouncing waveform demonstrating active channel visualization.
 
 ---
 
 ## Tech Stack
 
-- **Framework**: Electron (v30)
-- **Frontend**: Vanilla HTML5, CSS3, JavaScript (UMD modular patterns)
-- **Video Engine**: FFmpeg (via `ffmpeg-static` node module)
-- **Unit Testing**: Vitest (v1.6)
+*   **Runtime Framework**: Electron (v30)
+*   **Frontend**: Vanilla HTML5, CSS3 (CSS Variables, Flexbox, Keyframes, Custom Scrollbars), Vanilla JavaScript (Context Isolated Preload Bridge)
+*   **Video Engine**: FFmpeg (static macOS binaries bundled via `ffmpeg-static`)
+*   **Image Processing Engine**: HTML5 Canvas 2D API
+*   **Unit Testing**: Vitest (v1.6)
 
 ---
 
 ## Prerequisites
 
 Make sure you have Node.js and npm installed on your Mac:
-- **Node.js**: `v18` or higher (tested on `v24.14.0`)
-- **npm**: `v9` or higher (tested on `11.9.0`)
+*   **Node.js**: `v18` or higher (tested on `v24.14.0`)
+*   **npm**: `v9` or higher (tested on `11.9.0`)
 
-No external installation of FFmpeg or Homebrew is required; the application automatically bundles a static macOS binary.
+No external installation of FFmpeg, Homebrew, or ImageMagick is required; the application bundles all necessary dependencies natively.
 
 ---
 
 ## Installation & Setup
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd media-editor
-   ```
+1.  **Clone the repository**:
+    ```bash
+    git clone <repository-url>
+    cd media-editor
+    ```
 
-2. **Install dependencies locally**:
-   ```bash
-   npm install
-   ```
+2.  **Install dependencies locally**:
+    ```bash
+    npm install
+    ```
 
-3. **Run the application in development**:
-   ```bash
-   npm start
-   # or
-   npm run dev
-   ```
+3.  **Run the application in development**:
+    ```bash
+    npm start
+    # or
+    npm run dev
+    ```
 
-4. **Run unit tests**:
-   ```bash
-   npm run test
-   ```
+4.  **Run unit tests**:
+    ```bash
+    npm run test
+    ```
 
 ---
 
@@ -85,57 +101,53 @@ This compiles the application and generates the app bundle in:
 `./dist/mac-arm64/Media Editor.app` (or `./dist/mac/` depending on processor architecture).
 
 ### macOS Security Gatekeeper Workaround (For Unsigned Local App)
-Since the app is built locally without an active Apple Developer Team certificate, macOS Gatekeeper will block the application on the very first double-click. To open it:
-1. **Open Finder** and navigate to `./dist/mac-arm64/` (or wherever your package was generated).
-2. **Right-Click (Control-Click)** the **Media Editor.app** file.
-3. Click **Open** from the context menu.
-4. Select **Open** again in the macOS confirmation dialog.
-5. The application will now launch and will open instantly on all subsequent double-clicks without showing any warnings.
+Since the app is built locally without an Apple Developer certificate, macOS Gatekeeper will block the application on the first double-click. To open it:
+1.  **Open Finder** and navigate to `./dist/mac-arm64/`.
+2.  **Right-Click (Control-Click)** the **Media Editor.app** file.
+3.  Click **Open** from the context menu.
+4.  Select **Open** again in the macOS warning dialog.
+5.  The application will now launch and will open instantly on all subsequent double-clicks.
 
 ---
 
 ## Usage Guide
 
-### General
-1. **Load a Video**: Drag a video file onto the home dropzone, or click **Browse File** to select one.
-2. **Switch Tools**: Use the tab buttons at the top of the sidebar to toggle between **Splitter**, **Speed Changer**, and **Cropper** modes.
+### General Navigation
+Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to navigate between the app's main components. Switching away from the video editor will automatically pause any active video playback.
 
-### Video Splitter Mode
-1. **Configure Clips**: In the **Splitter** tab, select the number of clips you want to generate.
-2. **Set Timestamps**: Adjust the **Start Time** and **End Time** for each clip card:
-   - You can manually enter values in `HH:MM:SS.mmm` format.
-   - Or, play the video, scrub to the desired point, and click the **Use Current Time** icon button next to the input.
-3. **Choose Export settings**: Select a **Splitting Mode**:
-   - *Fast/Lossless* (retains input quality, splits in <1s)
-   - *Frame-Accurate* (re-encodes to cut at exact frames)
-4. **Export**: Click **Generate Clips** and select a folder of choice. Click **Open in Finder** upon completion.
+### 🎬 Video Editing
 
-![Video Splitter UI](./split_feature_ui.png)
+#### Video Splitter Mode
+1.  In the **Splitter** tab, configure the number of clips you want to extract.
+2.  Scrub through the video and click the **Use Current Time** button next to start/end inputs to capture timestamps, or enter them manually.
+3.  Select *Fast/Lossless* or *Frame-Accurate* modes.
+4.  Click **Generate Clips**, choose an export folder, and click **Open in Finder** when done.
 
-### Speed Changer Mode
-1. **Select Speed Mode**: Choose between **Constant Speed** (standard uniform speed change) and **Speed Ramp** (symmetrical bell-curve acceleration/deceleration).
-2. **Configure Speed**: Select a speed factor (e.g. `2.0x` preset, or adjust the **Custom Speed Factor** slider/numeric input). In Speed Ramp mode, this sets the peak speed multiplier in the middle of the clip.
-3. **Set Filename**: The target filename is prefilled automatically based on your speed setting (e.g. `video_2.00x.mp4` for constant speed, or `video_2.00x_ramp.mp4` for speed ramping), but you can customize it as desired.
-4. **Export**: Click **Apply Speed & Export**, select your destination folder, and wait for the conversion to finish.
+#### Video Speed Changer Mode
+1.  Choose between **Constant Speed** or **Speed Ramp**.
+2.  Adjust the custom speed multiplier factor or click presets.
+3.  Enter/check the output filename and click **Apply Speed & Export**.
 
-![Video Speed Changer UI](./speed_feature_ui.png)
+#### Video Frame Cropper Mode
+1.  Select the **Cropper** tab to show the video crop frame.
+2.  Position and resize the overlay box using the handles, or configure X/Y coordinate inputs.
+3.  Click **Apply Crop & Export**.
 
-### Video Cropper Mode
-1. **Activate Tab**: Select the **Cropper** tab at the top of the sidebar to display the crop overlay on the player.
-2. **Adjust Crop Area**:
-   - Drag the center of the crop box to reposition it.
-   - Drag any of the 4 circle corner handles to resize it.
-   - Or, type exact native pixel coordinate values in the **X, Y, Width, Height** input fields.
-3. **Select Aspect Ratio**: Select a preset ratio (e.g. `16:9 HD` or `1:1 Square`) to lock the crop box's aspect ratio during manual resizes.
-4. **Export**: Confirm the output file name, click **Apply Crop & Export**, and select a destination folder.
+### 🖼️ Image Editing
 
-![Video Frame Cropper UI](./crop_feature_ui.png)
+1.  Click the **Image Editor** tab.
+2.  Drag and drop an image or click **Browse Image** to load.
+3.  **Rotate / Flip**: Use the top visual handle to rotate by dragging, adjust the slider, or click preset rotation/mirroring buttons.
+4.  **Crop**: Check **Enable Cropping Area**. Drag the visual frame boundaries or corner knobs, or enter precise coordinates in the sidebar. Select aspect ratio presets to lock dimensions.
+5.  **Export**: Enter the output filename, click **Export Image**, and choose a destination folder.
+
+![Image Editor UI Mockup](./image_editor_ui_mockup.png)
 
 ---
 
 ## Testing
 
-This project uses Vitest to verify duration calculations, timestamp conversions, and speed-ramp complex filter graph generation. The test suite is located in `./helpers.test.js` and can be run with:
+This project uses Vitest to verify duration conversions, timestamp parsing, FFmpeg command generation, and image rotated bounding-box calculations. The test suite is located in `./helpers.test.js` and can be run with:
 ```bash
 npm run test
 ```
@@ -144,10 +156,10 @@ npm run test
 
 ## Project Structure
 
-- [main.js](./main.js) - Sets up Electron app windows, custom `media://` local streaming protocol, and handles FFmpeg spawning.
-- [preload.js](./preload.js) - Exposes a secure, context-isolated bridge interface (`electronAPI`) to the renderer.
-- [renderer.js](./renderer.js) - Manages UI updates, timeline overlays, scrubber events, and validation checks.
-- [helpers.js](./helpers.js) - Shared utilities for time formats and string parsing.
-- [helpers.test.js](./helpers.test.js) - Unit tests for time utilities.
-- [index.html](./index.html) - Application layout structure.
-- [style.css](./style.css) - App styling rules, including dark theme variables and custom scrubbers.
+*   [main.js](./main.js) - Spawns Electron windows, sets up native IPC handlers (`select-image-file`, `save-image-file`, etc.), custom local protocols, and triggers FFmpeg child processes.
+*   [preload.js](./preload.js) - Exposes secure context-isolated APIs to the renderer process.
+*   [renderer.js](./renderer.js) - Manages application logic, tab switches, timeline interfaces, rotation handlers, cropping states, and Canvas exports.
+*   [helpers.js](./helpers.js) - Shared mathematical and time-formatting utilities.
+*   [helpers.test.js](./helpers.test.js) - Automated unit tests for helpers.
+*   [index.html](./index.html) - Structural application markup.
+*   [style.css](./style.css) - Global dark mode variables, structural layouts, and bouncing audio waveforms.

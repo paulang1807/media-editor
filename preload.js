@@ -56,6 +56,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDirectory: (dirPath) => ipcRenderer.invoke('open-directory', dirPath),
 
   /**
+   * Opens native file dialog to select an image file.
+   * @returns {Promise<{ filePath: string, name: string, size: number } | null>}
+   */
+  selectImageFile: () => ipcRenderer.invoke('select-image-file'),
+
+  /**
+   * Saves image data url to a file.
+   * @param {string} dataUrl - Image data URL.
+   * @param {string} outputPath - Output file path.
+   * @returns {Promise<{ success: boolean, message?: string }>}
+   */
+  saveImageFile: (dataUrl, outputPath) => ipcRenderer.invoke('save-image-file', dataUrl, outputPath),
+
+  /**
    * Subscribes to splitting progress updates from the main process.
    * Returns a cleanup function to unsubscribe.
    * @param {function({ index: number, total: number, name: string, status: string, error?: string })} callback 

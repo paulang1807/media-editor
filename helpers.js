@@ -243,6 +243,26 @@
     return filterParts.join(';');
   }
 
+  /**
+   * Calculates the bounding box of a rotated rectangle.
+   * @param {number} width - Original width.
+   * @param {number} height - Original height.
+   * @param {number} degrees - Angle in degrees.
+   * @returns {{ width: number, height: number }} Bounding box dimensions.
+   */
+  function getRotatedCanvasDimensions(width, height, degrees) {
+    if (typeof width !== 'number' || isNaN(width) || width <= 0 ||
+        typeof height !== 'number' || isNaN(height) || height <= 0) {
+      return { width: 0, height: 0 };
+    }
+    const radians = (degrees * Math.PI) / 180;
+    const sin = Math.abs(Math.sin(radians));
+    const cos = Math.abs(Math.cos(radians));
+    const newWidth = Math.round(width * cos + height * sin);
+    const newHeight = Math.round(width * sin + height * cos);
+    return { width: newWidth, height: newHeight };
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -251,7 +271,8 @@
       isValidTimestampFormat,
       getAudioSpeedFilter,
       mapCropToNative,
-      getSpeedRampFilterComplex
+      getSpeedRampFilterComplex,
+      getRotatedCanvasDimensions
     };
   } else {
     window.helpers = {
@@ -260,7 +281,8 @@
       isValidTimestampFormat,
       getAudioSpeedFilter,
       mapCropToNative,
-      getSpeedRampFilterComplex
+      getSpeedRampFilterComplex,
+      getRotatedCanvasDimensions
     };
   }
 })();

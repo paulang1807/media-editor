@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex } = helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions } = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -180,6 +180,37 @@ describe('Time conversion and validation helpers', () => {
     test('handles invalid inputs gracefully by using defaults', () => {
       const complexStr = getSpeedRampFilterComplex('invalid', -1, false);
       expect(complexStr).toContain('trim=start=0.000000:end=0.200000');
+    });
+  });
+
+  describe('getRotatedCanvasDimensions', () => {
+    test('calculates correct dimensions for 0 degrees (no change)', () => {
+      expect(getRotatedCanvasDimensions(100, 200, 0)).toEqual({ width: 100, height: 200 });
+      expect(getRotatedCanvasDimensions(100, 200, 360)).toEqual({ width: 100, height: 200 });
+    });
+
+    test('swaps dimensions for 90 and 270 degrees', () => {
+      expect(getRotatedCanvasDimensions(100, 200, 90)).toEqual({ width: 200, height: 100 });
+      expect(getRotatedCanvasDimensions(100, 200, 270)).toEqual({ width: 200, height: 100 });
+    });
+
+    test('retains dimensions for 180 degrees', () => {
+      expect(getRotatedCanvasDimensions(100, 200, 180)).toEqual({ width: 100, height: 200 });
+    });
+
+    test('calculates correct dimensions for 45 degrees', () => {
+      // W' = W*cos(45) + H*sin(45) = 100*0.7071 + 100*0.7071 = 141.42 -> 141
+      expect(getRotatedCanvasDimensions(100, 100, 45)).toEqual({ width: 141, height: 141 });
+    });
+
+    test('handles negative angles correctly', () => {
+      expect(getRotatedCanvasDimensions(100, 200, -90)).toEqual({ width: 200, height: 100 });
+    });
+
+    test('handles invalid inputs gracefully by returning 0 dimensions', () => {
+      expect(getRotatedCanvasDimensions('invalid', 200, 90)).toEqual({ width: 0, height: 0 });
+      expect(getRotatedCanvasDimensions(100, null, 90)).toEqual({ width: 0, height: 0 });
+      expect(getRotatedCanvasDimensions(-10, 200, 90)).toEqual({ width: 0, height: 0 });
     });
   });
 

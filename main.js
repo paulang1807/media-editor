@@ -139,6 +139,55 @@ ipcMain.handle('select-video-file', async () => {
   }
 });
 
+// IPC Handler: File selector for image file
+ipcMain.handle('select-image-file', async () => {
+  console.log('Main Process: select-image-file IPC handler triggered');
+  if (!mainWindow) {
+    console.error('Main Process: select-image-file failed because mainWindow is null');
+    return null;
+  }
+
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Image File',
+      filters: [
+        { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp'] }
+      ],
+      properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    const filePath = result.filePaths[0];
+    const stats = fs.statSync(filePath);
+    return {
+      filePath,
+      name: path.basename(filePath),
+      size: stats.size
+    };
+  } catch (err) {
+    console.error('Main Process: select-image-file dialog error:', err);
+    return null;
+  }
+});
+
+// IPC Handler: Save image file from base64 data URL
+ipcMain.handle('save-image-file', async (event, dataUrl, outputPath) => {
+  console.log('Main Process: save-image-file IPC handler triggered for', outputPath);
+  try {
+    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+    fs.writeFileSync(outputPath, buffer);
+    return { success: true };
+  } catch (err) {
+    console.error('Main Process: save-image-file failed:', err);
+    return { success: false, message: err.message };
+  }
+});
+
+
 // IPC Handler: Save directory selector
 ipcMain.handle('select-output-directory', async (event, defaultPath) => {
   if (!mainWindow) return null;
