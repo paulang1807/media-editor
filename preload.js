@@ -36,6 +36,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('change-video-speed', inputPath, outputPath, multiplier, speedMode, duration),
 
   /**
+   * Triggers the video reversing process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the modified video.
+   * @param {boolean} reverseAudio - Whether to reverse and include audio.
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  reverseVideo: (inputPath, outputPath, reverseAudio) =>
+    ipcRenderer.invoke('reverse-video', inputPath, outputPath, reverseAudio),
+
+  /**
    * Triggers the video cropping process in the main process.
    * @param {string} inputPath - Original video file path.
    * @param {string} outputPath - Path to save the modified video.

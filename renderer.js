@@ -11,6 +11,8 @@ let outputDir = null;
 let clips = [];
 let activeClipIndex = null; // Track which clip is currently being played/previewed
 let speedMultiplier = 1.0;
+let isReversing = false;
+let lastTime = 0;
 
 // Cropper State
 let cropRect = { left: 0, top: 0, width: 0, height: 0 };
@@ -86,9 +88,17 @@ const generateBtn = document.getElementById('generate-btn');
 const tabSplit = document.getElementById('tab-split');
 const tabSpeed = document.getElementById('tab-speed');
 const tabCrop = document.getElementById('tab-crop');
+const tabReverse = document.getElementById('tab-reverse');
 const panelSplit = document.getElementById('panel-split');
 const panelSpeed = document.getElementById('panel-speed');
 const panelCrop = document.getElementById('panel-crop');
+const panelReverse = document.getElementById('panel-reverse');
+
+// Reverse Changer Elements
+const reverseAudioToggle = document.getElementById('reverse-audio-toggle');
+const reverseFilenameInput = document.getElementById('reverse-filename-input');
+const reverseGenerateBtn = document.getElementById('reverse-generate-btn');
+const playReverseBtn = document.getElementById('play-reverse-btn');
 
 // Speed Changer Elements
 const speedSlider = document.getElementById('speed-slider');
@@ -151,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabEvents();
   setupSpeedChangerEvents();
   setupCropperEvents();
+  setupReverseEvents();
   setupSettingsEvents();
   setupImageEditor();
 });
@@ -244,6 +255,10 @@ function loadVideo(filePath, fileName) {
   currentAspectRatio = 'free';
   updateCropFilenamePreview();
 
+  // Reset reversing settings
+  stopReversePlayback();
+  updateReverseFilenamePreview();
+
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
 
@@ -274,11 +289,16 @@ function onVideoMetadataLoaded() {
 function setupPlayerEvents() {
   playPauseBtn.addEventListener('click', togglePlay);
   
-  videoPlayer.addEventListener('play', updatePlayPauseUI);
-  videoPlayer.addEventListener('pause', updatePlayPauseUI);
+  videoPlayer.addEventListener('play', () => {
+    stopReversePlayback();
+    updatePlayPauseUI();
+  });
+  videoPlayer.addEventListener('pause', () => {
+    updatePlayPauseUI();
+  });
   
   videoPlayer.addEventListener('timeupdate', () => {
-    if (!videoPlayer.paused) {
+    if (!videoPlayer.paused || isReversing) {
       timelineScrubber.value = videoPlayer.currentTime;
     }
     currentTimeDisplay.textContent = secondsToTimestamp(videoPlayer.currentTime);
@@ -286,12 +306,19 @@ function setupPlayerEvents() {
   });
 
   timelineScrubber.addEventListener('input', () => {
+    if (isReversing) {
+      lastTime = performance.now();
+    }
     videoPlayer.currentTime = timelineScrubber.value;
     currentTimeDisplay.textContent = secondsToTimestamp(videoPlayer.currentTime);
   });
 }
 
 function togglePlay() {
+  if (isReversing) {
+    stopReversePlayback();
+    return;
+  }
   if (videoPlayer.paused) {
     videoPlayer.play();
   } else {
@@ -658,9 +685,11 @@ function setupTabEvents() {
     tabSplit.classList.add('active');
     tabSpeed.classList.remove('active');
     tabCrop.classList.remove('active');
+    tabReverse.classList.remove('active');
     panelSplit.classList.add('active');
     panelSpeed.classList.remove('active');
     panelCrop.classList.remove('active');
+    panelReverse.classList.remove('active');
     cropOverlayContainer.style.display = 'none';
   });
 
@@ -668,9 +697,11 @@ function setupTabEvents() {
     tabSpeed.classList.add('active');
     tabSplit.classList.remove('active');
     tabCrop.classList.remove('active');
+    tabReverse.classList.remove('active');
     panelSpeed.classList.add('active');
     panelSplit.classList.remove('active');
     panelCrop.classList.remove('active');
+    panelReverse.classList.remove('active');
     cropOverlayContainer.style.display = 'none';
   });
 
@@ -678,12 +709,26 @@ function setupTabEvents() {
     tabCrop.classList.add('active');
     tabSplit.classList.remove('active');
     tabSpeed.classList.remove('active');
+    tabReverse.classList.remove('active');
     panelCrop.classList.add('active');
     panelSplit.classList.remove('active');
     panelSpeed.classList.remove('active');
+    panelReverse.classList.remove('active');
     if (videoPath) {
       updateCropOverlayLayout();
     }
+  });
+
+  tabReverse.addEventListener('click', () => {
+    tabReverse.classList.add('active');
+    tabSplit.classList.remove('active');
+    tabSpeed.classList.remove('active');
+    tabCrop.classList.remove('active');
+    panelReverse.classList.add('active');
+    panelSplit.classList.remove('active');
+    panelSpeed.classList.remove('active');
+    panelCrop.classList.remove('active');
+    cropOverlayContainer.style.display = 'none';
   });
 }
 
@@ -1380,6 +1425,149 @@ function updateCropFilenamePreview() {
   cropFilenameInput.value = `${videoBaseName}_cropped.${videoExt}`;
 }
 
+// 8. Video Reverse Logic & Export
+function setupReverseEvents() {
+  if (playReverseBtn) {
+    playReverseBtn.addEventListener('click', () => {
+      if (!videoPath) return;
+      if (isReversing) {
+        stopReversePlayback();
+      } else {
+        startReversePlayback();
+      }
+    });
+  }
+
+  if (reverseGenerateBtn) {
+    reverseGenerateBtn.addEventListener('click', async () => {
+      if (!videoPath) {
+        alert('Please load a video first.');
+        return;
+      }
+
+      const outputName = reverseFilenameInput.value.trim();
+      if (!outputName) {
+        alert('Please enter an output file name.');
+        return;
+      }
+
+      const reverseAudio = reverseAudioToggle.checked;
+
+      // Prompt user for directory
+      const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+      const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+      if (!dir) {
+        return;
+      }
+      outputDir = dir;
+
+      const outputPath = `${dir}/${outputName}`;
+
+      // UI state
+      reverseGenerateBtn.disabled = true;
+      reverseGenerateBtn.textContent = 'Processing...';
+
+      progressOverlay.style.display = 'flex';
+      progressProgressBar.style.width = '0%';
+      progressPercentText.textContent = '0%';
+      progressStatusText.textContent = 'Preparing video reverse...';
+
+      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+        if (data.status === 'processing') {
+          progressStatusText.textContent = `Applying reverse modifications to "${data.name}"...`;
+          progressProgressBar.style.width = '50%';
+          progressPercentText.textContent = '50%';
+        } else if (data.status === 'done') {
+          progressStatusText.textContent = 'Finished reverse conversion!';
+          progressProgressBar.style.width = '100%';
+          progressPercentText.textContent = '100%';
+        } else if (data.status === 'error') {
+          progressStatusText.textContent = `Error: ${data.error}`;
+        }
+      });
+
+      try {
+        const result = await window.electronAPI.reverseVideo(videoPath, outputPath, reverseAudio);
+        removeProgressListener();
+        reverseGenerateBtn.disabled = false;
+        reverseGenerateBtn.textContent = 'Reverse & Export';
+        progressOverlay.style.display = 'none';
+
+        if (result.success) {
+          showSuccessModal('Reversing Complete!', 'The video has been successfully reversed and exported.');
+        } else {
+          alert(`Failed to reverse video: ${result.message}`);
+        }
+      } catch (error) {
+        removeProgressListener();
+        reverseGenerateBtn.disabled = false;
+        reverseGenerateBtn.textContent = 'Reverse & Export';
+        progressOverlay.style.display = 'none';
+        alert(`Unexpected error: ${error.message}`);
+      }
+    });
+  }
+}
+
+function updateReverseFilenamePreview() {
+  if (!reverseFilenameInput) return;
+  if (!videoBaseName) {
+    reverseFilenameInput.value = '';
+    return;
+  }
+  reverseFilenameInput.value = `${videoBaseName}_reversed.${videoExt}`;
+}
+
+function startReversePlayback() {
+  if (isReversing) return;
+  
+  // Pause normal forward playback
+  videoPlayer.pause();
+  
+  // If at the beginning, jump to end
+  if (videoPlayer.currentTime <= 0.05) {
+    videoPlayer.currentTime = videoDuration;
+  }
+  
+  isReversing = true;
+  if (playReverseBtn) {
+    playReverseBtn.classList.add('active');
+  }
+  
+  lastTime = performance.now();
+  
+  function reverseStep() {
+    if (!isReversing) return;
+    
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    
+    const rate = videoPlayer.playbackRate > 0 ? videoPlayer.playbackRate : 1.0;
+    let newTime = videoPlayer.currentTime - dt * rate;
+    
+    if (newTime <= 0) {
+      newTime = 0;
+      videoPlayer.currentTime = 0;
+      stopReversePlayback();
+      return;
+    }
+    
+    videoPlayer.currentTime = newTime;
+    requestAnimationFrame(reverseStep);
+  }
+  
+  requestAnimationFrame(reverseStep);
+}
+
+function stopReversePlayback() {
+  if (!isReversing) return;
+  isReversing = false;
+  if (playReverseBtn) {
+    playReverseBtn.classList.remove('active');
+  }
+}
+
 // Preference Settings Handlers
 function loadSettings() {
   try {
@@ -1471,6 +1659,7 @@ function setupMainSections() {
     // Pause video player if switching away from video tab
     if (section !== sectionVideo && videoPlayer) {
       videoPlayer.pause();
+      stopReversePlayback();
     }
     
     // Adjust crop layout for images if switching to image section

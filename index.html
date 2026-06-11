@@ -113,6 +113,14 @@
                 </svg>
                 <span class="nav-label">Crop</span>
               </button>
+
+              <button id="tab-reverse" class="nav-item" title="Reverse Video">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 19 2 12 11 5 11 19"></polygon>
+                  <polygon points="22 19 13 12 22 5 22 19"></polygon>
+                </svg>
+                <span class="nav-label">Reverse</span>
+              </button>
             </div>
           </div>
 
@@ -150,6 +158,12 @@
                       <svg id="pause-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="display: none;">
                         <rect x="6" y="4" width="4" height="16"></rect>
                         <rect x="14" y="4" width="4" height="16"></rect>
+                      </svg>
+                    </button>
+                    
+                    <button id="play-reverse-btn" class="control-btn" title="Play Reverse">
+                      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <polygon points="19 3 5 12 19 21 19 3"></polygon>
                       </svg>
                     </button>
                     
@@ -363,6 +377,39 @@
                   <h3>Export Settings</h3>
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Cropping requires re-encoding the video stream to apply the new dimensions.</small>
                   <button id="crop-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Crop & Export <span class="btn-icon">↗</span></button>
+                </div>
+              </div>
+
+              <!-- Tool Panel 4: Reverse -->
+              <div id="panel-reverse" class="tool-panel">
+                <!-- Reverse Settings Card -->
+                <div class="card sidebar-card" style="margin-bottom: 20px;">
+                  <div class="sidebar-header">
+                    <h3>Reverse Settings</h3>
+                  </div>
+                  
+                  <div class="reverse-settings-body" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Include Audio Checkbox -->
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                      <input type="checkbox" id="reverse-audio-toggle" checked style="width: 16px; height: 16px; cursor: pointer;">
+                      <label for="reverse-audio-toggle" style="text-transform: none; font-size: 13px; color: var(--text-primary); cursor: pointer; letter-spacing: normal;">
+                        Reverse Audio
+                      </label>
+                    </div>
+
+                    <!-- Export Filename Pre-visualization -->
+                    <div class="form-group">
+                      <label>Export File Name</label>
+                      <input type="text" id="reverse-filename-input" class="clip-name-input" placeholder="Output video file name">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Reverse Export Card -->
+                <div class="card sidebar-card export-card">
+                  <h3>Export Settings</h3>
+                  <small class="help-text" style="display: block; margin-bottom: 12px;">Reversing requires re-encoding the video and audio streams to construct the frames in reverse order.</small>
+                  <button id="reverse-generate-btn" class="btn btn-primary btn-lg btn-block">Reverse & Export <span class="btn-icon">↗</span></button>
                 </div>
               </div>
 

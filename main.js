@@ -4,7 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
-const { getAudioSpeedFilter, getSpeedRampFilterComplex } = require('./helpers.js');
+const { getAudioSpeedFilter, getSpeedRampFilterComplex, getReverseFilterComplex } = require('./helpers.js');
 
 // Redirect stdout/stderr console logs to app.log file in User Data folder for troubleshooting
 try {
@@ -541,6 +541,115 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
         error: error.message
       });
       return { success: false, message: `Failed to crop video: ${error.message}` };
+    }
+  }
+});
+
+// IPC Handler: Video reversing execution
+ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudio) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  const runReverse = async (useAudio) => {
+    const filter = getReverseFilterComplex(useAudio);
+    const args = [
+      '-i', inputPath,
+      '-filter_complex', filter,
+      '-map', '[v]',
+    ];
+    if (useAudio) {
+      args.push('-map', '[a]', '-c:a', 'aac', '-b:a', '192k');
+    } else {
+      args.push('-an');
+    }
+    args.push(
+      '-c:v', 'libx264',
+      '-preset', 'superfast',
+      '-crf', '20',
+      '-y',
+      outputPath
+    );
+    await runFFmpegCommand(args);
+  };
+
+  try {
+    await runReverse(reverseAudio);
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Reversing completed successfully!' };
+  } catch (error) {
+    const errorStr = error.message.toLowerCase();
+    
+    // Check if the error is due to missing audio stream
+    if (
+      reverseAudio && (
+        errorStr.includes('matches no streams') || 
+        errorStr.includes('no audio') || 
+        errorStr.includes('invalid stream') ||
+        errorStr.includes('specifier \':a\'') ||
+        errorStr.includes('stream copy')
+      )
+    ) {
+      console.log('Video does not have audio stream. Retrying with video-only reverse...');
+      try {
+        await runReverse(false);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'done'
+        });
+        return { success: true, message: 'Reversing completed successfully (video-only)!' };
+      } catch (videoError) {
+        console.error('Video-only reversing failed:', videoError);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'error',
+          error: videoError.message
+        });
+        return { success: false, message: `Failed to reverse video: ${videoError.message}` };
+      }
+    } else {
+      console.error('Reversing failed:', error);
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+      return { success: false, message: `Failed to reverse video: ${error.message}` };
     }
   }
 });

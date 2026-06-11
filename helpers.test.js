@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions } = helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions, getReverseFilterComplex } = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -211,6 +211,16 @@ describe('Time conversion and validation helpers', () => {
       expect(getRotatedCanvasDimensions('invalid', 200, 90)).toEqual({ width: 0, height: 0 });
       expect(getRotatedCanvasDimensions(100, null, 90)).toEqual({ width: 0, height: 0 });
       expect(getRotatedCanvasDimensions(-10, 200, 90)).toEqual({ width: 0, height: 0 });
+    });
+  });
+
+  describe('getReverseFilterComplex', () => {
+    test('generates correct filter complexes with audio', () => {
+      expect(getReverseFilterComplex(true)).toBe('[0:v]reverse[v];[0:a]areverse[a]');
+    });
+
+    test('generates correct filter complexes without audio', () => {
+      expect(getReverseFilterComplex(false)).toBe('[0:v]reverse[v]');
     });
   });
 

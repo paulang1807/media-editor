@@ -263,6 +263,19 @@
     return { width: newWidth, height: newHeight };
   }
 
+  /**
+   * Generates FFmpeg complex filter string for reversing video and optionally audio.
+   * @param {boolean} hasAudio - Whether video contains audio to reverse.
+   * @returns {string} FFmpeg filter_complex string.
+   */
+  function getReverseFilterComplex(hasAudio) {
+    if (hasAudio) {
+      return '[0:v]reverse[v];[0:a]areverse[a]';
+    } else {
+      return '[0:v]reverse[v]';
+    }
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -272,7 +285,8 @@
       getAudioSpeedFilter,
       mapCropToNative,
       getSpeedRampFilterComplex,
-      getRotatedCanvasDimensions
+      getRotatedCanvasDimensions,
+      getReverseFilterComplex
     };
   } else {
     window.helpers = {
@@ -282,7 +296,8 @@
       getAudioSpeedFilter,
       mapCropToNative,
       getSpeedRampFilterComplex,
-      getRotatedCanvasDimensions
+      getRotatedCanvasDimensions,
+      getReverseFilterComplex
     };
   }
 })();

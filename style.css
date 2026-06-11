@@ -355,6 +355,10 @@ body {
   color: var(--primary-accent);
   transform: scale(1.1);
 }
+.control-btn.active {
+  color: var(--primary-accent);
+  filter: drop-shadow(0 0 5px var(--primary-accent));
+}
 
 .time-display {
   font-family: var(--font-mono);

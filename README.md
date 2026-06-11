@@ -21,6 +21,10 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
     *   Interactively adjust the crop region on the video frame using a draggable/resizable overlay.
     *   Aspect ratio lock presets (`Freeform`, `1:1 Square`, `16:9 HD`, `9:16 Portrait`, `4:3 TV`).
     *   Enter precise manual pixel coordinates (X, Y, Width, Height) directly.
+*   **Video Reverser Tool**:
+    *   *Reverse Playback Preview*: Preview videos backwards in real time using the reverse play control button.
+    *   *Reversed or Muted Audio*: Reverses audio streams in synchronization or mutes audio if desired.
+    *   *Auto-fallback*: Seamlessly bypasses audio reversing if no audio stream is present in the source file.
 *   **Dual Export Modes**:
     *   *Fast/Lossless (Instant)*: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without quality loss.
     *   *Frame-Accurate (Precise)*: Re-encodes using H.264/AAC to cut video at the exact millisecond.
@@ -132,6 +136,12 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 1.  Select the **Cropper** tab to show the video crop frame.
 2.  Position and resize the overlay box using the handles, or configure X/Y coordinate inputs.
 3.  Click **Apply Crop & Export**.
+
+#### Video Reverser Mode
+1.  Select the **Reverse** tab in the sidebar.
+2.  Choose whether to reverse the audio track or mute it using the **Reverse Audio** checkbox.
+3.  Use the **Play Reverse** button in the player controls row to preview the reversed video.
+4.  Enter/check the output filename and click **Reverse & Export**.
 
 ### 🖼️ Image Editing
 
