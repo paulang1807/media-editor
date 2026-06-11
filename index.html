@@ -121,6 +121,14 @@
                 </svg>
                 <span class="nav-label">Reverse</span>
               </button>
+
+              <button id="tab-delogo" class="nav-item" title="Remove Logo/Text">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9"></path>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+                <span class="nav-label">Erase</span>
+              </button>
             </div>
           </div>
 
@@ -139,6 +147,21 @@
                     <div id="crop-mask-left" class="crop-mask"></div>
                     <div id="crop-mask-right" class="crop-mask"></div>
                     <div id="crop-box" class="crop-box">
+                      <div class="crop-handle handle-tl" data-handle="tl"></div>
+                      <div class="crop-handle handle-tr" data-handle="tr"></div>
+                      <div class="crop-handle handle-bl" data-handle="bl"></div>
+                      <div class="crop-handle handle-br" data-handle="br"></div>
+                      <div class="crop-drag-area"></div>
+                    </div>
+                  </div>
+
+                  <!-- Visual Delogo Overlay -->
+                  <div id="delogo-overlay-container" class="crop-overlay-container delogo-overlay-container" style="display: none;">
+                    <div id="delogo-mask-top" class="crop-mask"></div>
+                    <div id="delogo-mask-bottom" class="crop-mask"></div>
+                    <div id="delogo-mask-left" class="crop-mask"></div>
+                    <div id="delogo-mask-right" class="crop-mask"></div>
+                    <div id="delogo-box" class="crop-box delogo-box">
                       <div class="crop-handle handle-tl" data-handle="tl"></div>
                       <div class="crop-handle handle-tr" data-handle="tr"></div>
                       <div class="crop-handle handle-bl" data-handle="bl"></div>
@@ -410,6 +433,65 @@
                   <h3>Export Settings</h3>
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Reversing requires re-encoding the video and audio streams to construct the frames in reverse order.</small>
                   <button id="reverse-generate-btn" class="btn btn-primary btn-lg btn-block">Reverse & Export <span class="btn-icon">↗</span></button>
+                </div>
+              </div>
+
+              <!-- Tool Panel 5: Delogo -->
+              <div id="panel-delogo" class="tool-panel">
+                <!-- Delogo Settings Card -->
+                <div class="card sidebar-card" style="margin-bottom: 20px;">
+                  <div class="sidebar-header">
+                    <h3>Erase Settings</h3>
+                  </div>
+                  
+                  <div class="delogo-settings-body">
+                    <!-- Erase Style Selector -->
+                    <div class="form-group" style="margin-bottom: 15px;">
+                      <label for="delogo-style-select">Erase Style</label>
+                      <select id="delogo-style-select" class="select-input" style="width: 100%;">
+                        <option value="blur">Smooth Blur (Gaussian)</option>
+                        <option value="solid">Solid Color Block (Blackout)</option>
+                        <option value="interpolate">Pixel Interpolation (Delogo)</option>
+                      </select>
+                    </div>
+
+                    <!-- Manual Fields -->
+                    <div class="crop-manual-fields">
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label for="delogo-val-x">X (px)</label>
+                          <input type="number" id="delogo-val-x" min="0" step="1" value="0" class="num-input crop-coord-input">
+                        </div>
+                        <div class="form-group">
+                          <label for="delogo-val-y">Y (px)</label>
+                          <input type="number" id="delogo-val-y" min="0" step="1" value="0" class="num-input crop-coord-input">
+                        </div>
+                      </div>
+                      <div class="form-row">
+                        <div class="form-group">
+                          <label for="delogo-val-w">Width (px)</label>
+                          <input type="number" id="delogo-val-w" min="1" step="1" value="100" class="num-input crop-coord-input">
+                        </div>
+                        <div class="form-group">
+                          <label for="delogo-val-h">Height (px)</label>
+                          <input type="number" id="delogo-val-h" min="1" step="1" value="100" class="num-input crop-coord-input">
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Export Filename Pre-visualization -->
+                    <div class="form-group" style="margin-top: 15px;">
+                      <label>Export File Name</label>
+                      <input type="text" id="delogo-filename-input" class="clip-name-input" placeholder="Output video file name">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Delogo Export Card -->
+                <div class="card sidebar-card export-card">
+                  <h3>Export Settings</h3>
+                  <small class="help-text" style="display: block; margin-bottom: 12px;">Removing text overlays requires re-encoding the video stream to apply the delogo filter.</small>
+                  <button id="delogo-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Erase & Export <span class="btn-icon">↗</span></button>
                 </div>
               </div>
 

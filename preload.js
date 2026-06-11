@@ -59,6 +59,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('crop-video', inputPath, outputPath, x, y, width, height),
 
   /**
+   * Triggers the video text overlay removal (erase) process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the modified video.
+   * @param {string} mode - Erase style mode ("blur", "solid", "interpolate").
+   * @param {number} x - Native X coordinate of erase box.
+   * @param {number} y - Native Y coordinate of erase box.
+   * @param {number} width - Native width of erase box.
+   * @param {number} height - Native height of erase box.
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  eraseVideo: (inputPath, outputPath, mode, x, y, width, height) =>
+    ipcRenderer.invoke('erase-video', inputPath, outputPath, mode, x, y, width, height),
+
+  /**
    * Opens the given directory in the macOS Finder.
    * @param {string} dirPath - Folder path.
    * @returns {Promise<void>}

@@ -1497,3 +1497,17 @@ body {
   0% { transform: scaleY(1); }
   100% { transform: scaleY(2); background-color: #8B5CF6; }
 }
+
+/* Erase Tool logo removal box */
+.delogo-box {
+  border: 1.5px dashed var(--danger-accent) !important;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+.delogo-box .crop-handle {
+  border-color: var(--danger-accent) !important;
+}
+
+.delogo-box .crop-handle:hover {
+  background-color: var(--danger-accent) !important;
+}

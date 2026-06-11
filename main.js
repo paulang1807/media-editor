@@ -4,7 +4,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
-const { getAudioSpeedFilter, getSpeedRampFilterComplex, getReverseFilterComplex } = require('./helpers.js');
+const { getAudioSpeedFilter, getSpeedRampFilterComplex, getReverseFilterComplex, getEraseFilterComplex } = require('./helpers.js');
 
 // Redirect stdout/stderr console logs to app.log file in User Data folder for troubleshooting
 try {
@@ -650,6 +650,113 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
         error: error.message
       });
       return { success: false, message: `Failed to reverse video: ${error.message}` };
+    }
+  }
+});
+
+// IPC Handler: Video erase execution
+ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, width, height) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  const runErase = async (useAudio) => {
+    const filterComplex = getEraseFilterComplex(mode, x, y, width, height);
+    const args = [
+      '-i', inputPath,
+      '-filter_complex', filterComplex,
+      '-map', '[v]'
+    ];
+    if (useAudio) {
+      args.push('-map', '0:a', '-c:a', 'copy');
+    } else {
+      args.push('-an');
+    }
+    args.push(
+      '-c:v', 'libx264',
+      '-preset', 'superfast',
+      '-crf', '20',
+      '-y',
+      outputPath
+    );
+    await runFFmpegCommand(args);
+  };
+
+  try {
+    await runErase(true);
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Text overlay removal completed successfully!' };
+  } catch (error) {
+    const errorStr = error.message.toLowerCase();
+    
+    // Check if the error is due to missing audio stream
+    if (
+      errorStr.includes('matches no streams') || 
+      errorStr.includes('no audio') || 
+      errorStr.includes('invalid stream') ||
+      errorStr.includes('specifier \':a\'') ||
+      errorStr.includes('stream copy')
+    ) {
+      console.log('Video does not have audio stream. Retrying with video-only erase...');
+      try {
+        await runErase(false);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'done'
+        });
+        return { success: true, message: 'Text overlay removal completed successfully (video-only)!' };
+      } catch (videoError) {
+        console.error('Video-only erase failed:', videoError);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'error',
+          error: videoError.message
+        });
+        return { success: false, message: `Failed to remove text overlay: ${videoError.message}` };
+      }
+    } else {
+      console.error('Erase failed:', error);
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+      return { success: false, message: `Failed to remove text overlay: ${error.message}` };
     }
   }
 });

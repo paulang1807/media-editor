@@ -25,6 +25,13 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
     *   *Reverse Playback Preview*: Preview videos backwards in real time using the reverse play control button.
     *   *Reversed or Muted Audio*: Reverses audio streams in synchronization or mutes audio if desired.
     *   *Auto-fallback*: Seamlessly bypasses audio reversing if no audio stream is present in the source file.
+*   **Video Logo & Text Eraser Tool**:
+    *   *Draggable Erase Region Overlay*: Draw a red, resizable boundary overlay box over any logo, watermark, or text overlay on the video frame.
+    *   *Multiple Erase Styles*:
+        *   *Smooth Blur (Gaussian)*: Crops the target region, applies a smooth `boxblur`, and overlays it back for a clean watermark blur.
+        *   *Solid Color Block (Blackout)*: Covers the target region with a solid black rectangle using the `drawbox` filter.
+        *   *Pixel Interpolation (Delogo)*: Blends/interpolates the selected region using the surrounding frame pixels via FFmpeg's `delogo` filter.
+    *   *Manual Dimension Inputs*: Fine-tune removal coordinates precisely in the sidebar.
 *   **Dual Export Modes**:
     *   *Fast/Lossless (Instant)*: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without quality loss.
     *   *Frame-Accurate (Precise)*: Re-encodes using H.264/AAC to cut video at the exact millisecond.
@@ -142,6 +149,12 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 2.  Choose whether to reverse the audio track or mute it using the **Reverse Audio** checkbox.
 3.  Use the **Play Reverse** button in the player controls row to preview the reversed video.
 4.  Enter/check the output filename and click **Reverse & Export**.
+
+#### Video Logo & Text Eraser Mode
+1.  Select the **Erase** tab in the sidebar (represented by the eraser icon).
+2.  Choose the preferred **Erase Style** from the dropdown menu (**Smooth Blur (Gaussian)**, **Solid Color Block (Blackout)**, or **Pixel Interpolation (Delogo)**).
+3.  Adjust the red dashed overlay box over the logo or text overlay on the video player (or enter X, Y, Width, and Height dimensions manually in the sidebar).
+4.  Enter/check the output filename and click **Apply Erase & Export**.
 
 ### 🖼️ Image Editing
 

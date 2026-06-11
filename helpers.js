@@ -276,6 +276,26 @@
     }
   }
 
+  /**
+   * Generates FFmpeg complex filter graph for erasing a region.
+   * @param {string} mode - "blur", "solid", or "interpolate".
+   * @param {number} x
+   * @param {number} y
+   * @param {number} w
+   * @param {number} h
+   * @returns {string} Complex filter graph string.
+   */
+  function getEraseFilterComplex(mode, x, y, w, h) {
+    if (mode === 'solid') {
+      return `[0:v]drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=black:t=fill[v]`;
+    } else if (mode === 'interpolate') {
+      return `[0:v]delogo=x=${x}:y=${y}:w=${w}:h=${h}[v]`;
+    } else {
+      // Default: Smooth Blur using crop, boxblur, and overlay
+      return `[0:v]crop=w=${w}:h=${h}:x=${x}:y=${y},boxblur=15:5[sub];[0:v][sub]overlay=x=${x}:y=${y}[v]`;
+    }
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -286,7 +306,8 @@
       mapCropToNative,
       getSpeedRampFilterComplex,
       getRotatedCanvasDimensions,
-      getReverseFilterComplex
+      getReverseFilterComplex,
+      getEraseFilterComplex
     };
   } else {
     window.helpers = {
@@ -297,7 +318,8 @@
       mapCropToNative,
       getSpeedRampFilterComplex,
       getRotatedCanvasDimensions,
-      getReverseFilterComplex
+      getReverseFilterComplex,
+      getEraseFilterComplex
     };
   }
 })();

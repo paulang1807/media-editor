@@ -14,6 +14,14 @@ let speedMultiplier = 1.0;
 let isReversing = false;
 let lastTime = 0;
 
+// Delogo State
+let delogoRect = { left: 0, top: 0, width: 0, height: 0 };
+let delogoNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+let delogoIsDragging = false;
+let delogoDragStart = { x: 0, y: 0 };
+let delogoDragMode = null; // 'move', 'tl', 'tr', 'bl', 'br'
+let delogoBoxStart = { left: 0, top: 0, width: 0, height: 0 };
+
 // Cropper State
 let cropRect = { left: 0, top: 0, width: 0, height: 0 };
 let cropNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
@@ -100,6 +108,19 @@ const reverseFilenameInput = document.getElementById('reverse-filename-input');
 const reverseGenerateBtn = document.getElementById('reverse-generate-btn');
 const playReverseBtn = document.getElementById('play-reverse-btn');
 
+// Delogo Elements
+const tabDelogo = document.getElementById('tab-delogo');
+const panelDelogo = document.getElementById('panel-delogo');
+const delogoOverlayContainer = document.getElementById('delogo-overlay-container');
+const delogoBox = document.getElementById('delogo-box');
+const delogoValX = document.getElementById('delogo-val-x');
+const delogoValY = document.getElementById('delogo-val-y');
+const delogoValW = document.getElementById('delogo-val-w');
+const delogoValH = document.getElementById('delogo-val-h');
+const delogoStyleSelect = document.getElementById('delogo-style-select');
+const delogoFilenameInput = document.getElementById('delogo-filename-input');
+const delogoGenerateBtn = document.getElementById('delogo-generate-btn');
+
 // Speed Changer Elements
 const speedSlider = document.getElementById('speed-slider');
 const speedInput = document.getElementById('speed-input');
@@ -162,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSpeedChangerEvents();
   setupCropperEvents();
   setupReverseEvents();
+  setupDelogoEvents();
   setupSettingsEvents();
   setupImageEditor();
 });
@@ -258,6 +280,10 @@ function loadVideo(filePath, fileName) {
   // Reset reversing settings
   stopReversePlayback();
   updateReverseFilenamePreview();
+
+  // Reset delogo settings
+  delogoNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+  updateDelogoFilenamePreview();
 
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
@@ -686,11 +712,14 @@ function setupTabEvents() {
     tabSpeed.classList.remove('active');
     tabCrop.classList.remove('active');
     tabReverse.classList.remove('active');
+    tabDelogo.classList.remove('active');
     panelSplit.classList.add('active');
     panelSpeed.classList.remove('active');
     panelCrop.classList.remove('active');
     panelReverse.classList.remove('active');
+    panelDelogo.classList.remove('active');
     cropOverlayContainer.style.display = 'none';
+    delogoOverlayContainer.style.display = 'none';
   });
 
   tabSpeed.addEventListener('click', () => {
@@ -698,11 +727,14 @@ function setupTabEvents() {
     tabSplit.classList.remove('active');
     tabCrop.classList.remove('active');
     tabReverse.classList.remove('active');
+    tabDelogo.classList.remove('active');
     panelSpeed.classList.add('active');
     panelSplit.classList.remove('active');
     panelCrop.classList.remove('active');
     panelReverse.classList.remove('active');
+    panelDelogo.classList.remove('active');
     cropOverlayContainer.style.display = 'none';
+    delogoOverlayContainer.style.display = 'none';
   });
 
   tabCrop.addEventListener('click', () => {
@@ -710,10 +742,13 @@ function setupTabEvents() {
     tabSplit.classList.remove('active');
     tabSpeed.classList.remove('active');
     tabReverse.classList.remove('active');
+    tabDelogo.classList.remove('active');
     panelCrop.classList.add('active');
     panelSplit.classList.remove('active');
     panelSpeed.classList.remove('active');
     panelReverse.classList.remove('active');
+    panelDelogo.classList.remove('active');
+    delogoOverlayContainer.style.display = 'none';
     if (videoPath) {
       updateCropOverlayLayout();
     }
@@ -724,11 +759,31 @@ function setupTabEvents() {
     tabSplit.classList.remove('active');
     tabSpeed.classList.remove('active');
     tabCrop.classList.remove('active');
+    tabDelogo.classList.remove('active');
     panelReverse.classList.add('active');
     panelSplit.classList.remove('active');
     panelSpeed.classList.remove('active');
     panelCrop.classList.remove('active');
+    panelDelogo.classList.remove('active');
     cropOverlayContainer.style.display = 'none';
+    delogoOverlayContainer.style.display = 'none';
+  });
+
+  tabDelogo.addEventListener('click', () => {
+    tabDelogo.classList.add('active');
+    tabSplit.classList.remove('active');
+    tabSpeed.classList.remove('active');
+    tabCrop.classList.remove('active');
+    tabReverse.classList.remove('active');
+    panelDelogo.classList.add('active');
+    panelSplit.classList.remove('active');
+    panelSpeed.classList.remove('active');
+    panelCrop.classList.remove('active');
+    panelReverse.classList.remove('active');
+    cropOverlayContainer.style.display = 'none';
+    if (videoPath) {
+      updateDelogoOverlayLayout();
+    }
   });
 }
 
@@ -939,6 +994,9 @@ function setupCropperEvents() {
   window.addEventListener('resize', () => {
     if (tabCrop.classList.contains('active') && videoPath) {
       updateCropOverlayLayout();
+    }
+    if (tabDelogo.classList.contains('active') && videoPath) {
+      updateDelogoOverlayLayout();
     }
   });
 
@@ -1558,6 +1616,369 @@ function startReversePlayback() {
   }
   
   requestAnimationFrame(reverseStep);
+}
+
+function stopReversePlayback() {
+  if (!isReversing) return;
+  isReversing = false;
+  if (playReverseBtn) {
+    playReverseBtn.classList.remove('active');
+  }
+}
+
+// 9. Video Delogo (Erase Overlay) Logic & Export
+function setupDelogoEvents() {
+  // Bind manual input fields
+  const inputs = [delogoValX, delogoValY, delogoValW, delogoValH];
+  inputs.forEach(input => {
+    input.addEventListener('input', handleDelogoManualInputChange);
+  });
+
+  // Drag listeners
+  const dragArea = delogoBox.querySelector('.crop-drag-area');
+  dragArea.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    delogoIsDragging = true;
+    delogoDragMode = 'move';
+    delogoDragStart.x = e.clientX;
+    delogoDragStart.y = e.clientY;
+    delogoBoxStart = { ...delogoRect };
+  });
+
+  const handles = delogoBox.querySelectorAll('.crop-handle');
+  handles.forEach(handle => {
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // Prevent drag area from triggering
+      delogoIsDragging = true;
+      delogoDragMode = handle.getAttribute('data-handle');
+      delogoDragStart.x = e.clientX;
+      delogoDragStart.y = e.clientY;
+      delogoBoxStart = { ...delogoRect };
+    });
+  });
+
+  // Document level drag tracking
+  document.addEventListener('mousemove', (e) => {
+    if (!delogoIsDragging) return;
+    
+    const rect = getVideoContentRect();
+    if (!rect) return;
+    
+    const dx = e.clientX - delogoDragStart.x;
+    const dy = e.clientY - delogoDragStart.y;
+    
+    if (delogoDragMode === 'move') {
+      let newLeft = delogoBoxStart.left + dx;
+      let newTop = delogoBoxStart.top + dy;
+      
+      // Clamp to container bounds
+      newLeft = Math.max(0, Math.min(newLeft, rect.width - delogoRect.width));
+      newTop = Math.max(0, Math.min(newTop, rect.height - delogoRect.height));
+      
+      delogoRect.left = newLeft;
+      delogoRect.top = newTop;
+    } else {
+      // Resize mode
+      const minSize = 20; // visual px minimum
+      
+      if (delogoDragMode === 'br') {
+        let newW = delogoBoxStart.width + dx;
+        let newH = delogoBoxStart.height + dy;
+        
+        newW = Math.max(minSize, Math.min(newW, rect.width - delogoBoxStart.left));
+        newH = Math.max(minSize, Math.min(newH, rect.height - delogoBoxStart.top));
+        
+        delogoRect.width = newW;
+        delogoRect.height = newH;
+      } 
+      else if (delogoDragMode === 'tr') {
+        let newW = delogoBoxStart.width + dx;
+        let newH = delogoBoxStart.height - dy;
+        let newTop = delogoBoxStart.top + dy;
+        
+        newW = Math.max(minSize, Math.min(newW, rect.width - delogoBoxStart.left));
+        if (newTop < 0) {
+          newH = delogoBoxStart.top + delogoBoxStart.height;
+          newTop = 0;
+        }
+        newH = Math.max(minSize, newH);
+        newTop = delogoBoxStart.top + delogoBoxStart.height - newH;
+        
+        delogoRect.width = newW;
+        delogoRect.height = newH;
+        delogoRect.top = newTop;
+      }
+      else if (delogoDragMode === 'bl') {
+        let newW = delogoBoxStart.width - dx;
+        let newLeft = delogoBoxStart.left + dx;
+        let newH = delogoBoxStart.height + dy;
+        
+        if (newLeft < 0) {
+          newW = delogoBoxStart.left + delogoBoxStart.width;
+          newLeft = 0;
+        }
+        newW = Math.max(minSize, newW);
+        newLeft = delogoBoxStart.left + delogoBoxStart.width - newW;
+        newH = Math.max(minSize, Math.min(newH, rect.height - delogoBoxStart.top));
+        
+        delogoRect.width = newW;
+        delogoRect.left = newLeft;
+        delogoRect.height = newH;
+      }
+      else if (delogoDragMode === 'tl') {
+        let newW = delogoBoxStart.width - dx;
+        let newLeft = delogoBoxStart.left + dx;
+        let newH = delogoBoxStart.height - dy;
+        let newTop = delogoBoxStart.top + dy;
+        
+        if (newLeft < 0) {
+          newW = delogoBoxStart.left + delogoBoxStart.width;
+          newLeft = 0;
+        }
+        newW = Math.max(minSize, newW);
+        newLeft = delogoBoxStart.left + delogoBoxStart.width - newW;
+        
+        if (newTop < 0) {
+          newH = delogoBoxStart.top + delogoBoxStart.height;
+          newTop = 0;
+        }
+        newH = Math.max(minSize, newH);
+        newTop = delogoBoxStart.top + delogoBoxStart.height - newH;
+        
+        delogoRect.width = newW;
+        delogoRect.left = newLeft;
+        delogoRect.height = newH;
+        delogoRect.top = newTop;
+      }
+    }
+    
+    // Update normalized coordinates
+    delogoNormalized.x = delogoRect.left / rect.width;
+    delogoNormalized.y = delogoRect.top / rect.height;
+    delogoNormalized.w = delogoRect.width / rect.width;
+    delogoNormalized.h = delogoRect.height / rect.height;
+    
+    drawDelogoBoxAndMasks();
+    updateDelogoManualInputFields();
+  });
+
+  document.addEventListener('mouseup', () => {
+    delogoIsDragging = false;
+    delogoDragMode = null;
+  });
+
+  // Apply delogo Export
+  delogoGenerateBtn.addEventListener('click', async () => {
+    if (!videoPath) {
+      alert('Please load a video first.');
+      return;
+    }
+
+    const outputName = delogoFilenameInput.value.trim();
+    if (!outputName) {
+      alert('Please enter an output file name.');
+      return;
+    }
+
+    const rect = getVideoContentRect();
+    if (!rect) return;
+
+    // Use mapCropToNative to project screen coords to native video dimensions
+    const native = mapCropToNative(
+      delogoRect,
+      rect,
+      videoPlayer.videoWidth,
+      videoPlayer.videoHeight
+    );
+
+    // Prompt user for directory
+    const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    if (!dir) {
+      return;
+    }
+    outputDir = dir;
+
+    const outputPath = `${dir}/${outputName}`;
+
+    // UI state
+    delogoGenerateBtn.disabled = true;
+    delogoGenerateBtn.textContent = 'Processing...';
+
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '0%';
+    progressPercentText.textContent = '0%';
+    progressStatusText.textContent = 'Preparing overlay removal...';
+
+    const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+      if (data.status === 'processing') {
+        progressStatusText.textContent = `Removing text overlay from "${data.name}"...`;
+        progressProgressBar.style.width = '50%';
+        progressPercentText.textContent = '50%';
+      } else if (data.status === 'done') {
+        progressStatusText.textContent = 'Finished overlay removal!';
+        progressProgressBar.style.width = '100%';
+        progressPercentText.textContent = '100%';
+      } else if (data.status === 'error') {
+        progressStatusText.textContent = `Error: ${data.error}`;
+      }
+    });
+
+    try {
+      const style = delogoStyleSelect.value;
+      const result = await window.electronAPI.eraseVideo(
+        videoPath,
+        outputPath,
+        style,
+        native.x,
+        native.y,
+        native.width,
+        native.height
+      );
+      removeProgressListener();
+      delogoGenerateBtn.disabled = false;
+      delogoGenerateBtn.textContent = 'Apply Erase & Export';
+      progressOverlay.style.display = 'none';
+
+      if (result.success) {
+        showSuccessModal('Overlay Removal Complete!', 'The text overlay has been successfully removed and exported.');
+      } else {
+        alert(`Failed to remove overlay: ${result.message}`);
+      }
+    } catch (error) {
+      removeProgressListener();
+      delogoGenerateBtn.disabled = false;
+      delogoGenerateBtn.textContent = 'Apply Erase & Export';
+      progressOverlay.style.display = 'none';
+      alert(`Unexpected error: ${error.message}`);
+    }
+  });
+}
+
+function updateDelogoOverlayLayout() {
+  if (!videoPath || !delogoOverlayContainer) return;
+  
+  const rect = getVideoContentRect();
+  if (!rect) {
+    delogoOverlayContainer.style.display = 'none';
+    return;
+  }
+  
+  delogoOverlayContainer.style.display = 'block';
+  delogoOverlayContainer.style.left = `${rect.left}px`;
+  delogoOverlayContainer.style.top = `${rect.top}px`;
+  delogoOverlayContainer.style.width = `${rect.width}px`;
+  delogoOverlayContainer.style.height = `${rect.height}px`;
+  
+  // Set delogoRect in screen pixels based on normalized bounds
+  delogoRect.left = delogoNormalized.x * rect.width;
+  delogoRect.top = delogoNormalized.y * rect.height;
+  delogoRect.width = delogoNormalized.w * rect.width;
+  delogoRect.height = delogoNormalized.h * rect.height;
+  
+  drawDelogoBoxAndMasks();
+  updateDelogoManualInputFields();
+}
+
+function drawDelogoBoxAndMasks() {
+  if (!videoPath || !delogoBox) return;
+  
+  // Size the main box
+  delogoBox.style.left = `${delogoRect.left}px`;
+  delogoBox.style.top = `${delogoRect.top}px`;
+  delogoBox.style.width = `${delogoRect.width}px`;
+  delogoBox.style.height = `${delogoRect.height}px`;
+  
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  // Update masks
+  const maskT = document.getElementById('delogo-mask-top');
+  const maskB = document.getElementById('delogo-mask-bottom');
+  const maskL = document.getElementById('delogo-mask-left');
+  const maskR = document.getElementById('delogo-mask-right');
+  
+  if (maskT) {
+    maskT.style.left = '0px';
+    maskT.style.top = '0px';
+    maskT.style.width = '100%';
+    maskT.style.height = `${delogoRect.top}px`;
+  }
+  if (maskB) {
+    maskB.style.left = '0px';
+    maskB.style.top = `${delogoRect.top + delogoRect.height}px`;
+    maskB.style.width = '100%';
+    maskB.style.height = `${rect.height - (delogoRect.top + delogoRect.height)}px`;
+  }
+  if (maskL) {
+    maskL.style.left = '0px';
+    maskL.style.top = `${delogoRect.top}px`;
+    maskL.style.width = `${delogoRect.left}px`;
+    maskL.style.height = `${delogoRect.height}px`;
+  }
+  if (maskR) {
+    maskR.style.left = `${delogoRect.left + delogoRect.width}px`;
+    maskR.style.top = `${delogoRect.top}px`;
+    maskR.style.width = `${rect.width - (delogoRect.left + delogoRect.width)}px`;
+    maskR.style.height = `${delogoRect.height}px`;
+  }
+}
+
+function updateDelogoManualInputFields() {
+  if (!videoPath) return;
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  // Map display pixels to native video pixels
+  const native = mapCropToNative(
+    delogoRect,
+    rect,
+    videoPlayer.videoWidth,
+    videoPlayer.videoHeight
+  );
+  
+  if (delogoValX) delogoValX.value = native.x;
+  if (delogoValY) delogoValY.value = native.y;
+  if (delogoValW) delogoValW.value = native.width;
+  if (delogoValH) delogoValH.value = native.height;
+}
+
+function handleDelogoManualInputChange() {
+  if (!videoPath) return;
+  const rect = getVideoContentRect();
+  if (!rect) return;
+  
+  const valX = parseInt(delogoValX.value, 10) || 0;
+  const valY = parseInt(delogoValY.value, 10) || 0;
+  const valW = parseInt(delogoValW.value, 10) || 100;
+  const valH = parseInt(delogoValH.value, 10) || 100;
+  
+  // Scale native coordinates back to display coordinates
+  const scaleX = rect.width / videoPlayer.videoWidth;
+  const scaleY = rect.height / videoPlayer.videoHeight;
+  
+  delogoRect.left = Math.max(0, Math.min(valX * scaleX, rect.width - 20));
+  delogoRect.top = Math.max(0, Math.min(valY * scaleY, rect.height - 20));
+  delogoRect.width = Math.max(20, Math.min(valW * scaleX, rect.width - delogoRect.left));
+  delogoRect.height = Math.max(20, Math.min(valH * scaleY, rect.height - delogoRect.top));
+  
+  // Update normalized
+  delogoNormalized.x = delogoRect.left / rect.width;
+  delogoNormalized.y = delogoRect.top / rect.height;
+  delogoNormalized.w = delogoRect.width / rect.width;
+  delogoNormalized.h = delogoRect.height / rect.height;
+  
+  drawDelogoBoxAndMasks();
+}
+
+function updateDelogoFilenamePreview() {
+  if (!delogoFilenameInput) return;
+  if (!videoBaseName) {
+    delogoFilenameInput.value = '';
+    return;
+  }
+  delogoFilenameInput.value = `${videoBaseName}_delogo.${videoExt}`;
 }
 
 function stopReversePlayback() {

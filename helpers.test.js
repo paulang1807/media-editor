@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions, getReverseFilterComplex } = helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions, getReverseFilterComplex, getEraseFilterComplex } = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -221,6 +221,23 @@ describe('Time conversion and validation helpers', () => {
 
     test('generates correct filter complexes without audio', () => {
       expect(getReverseFilterComplex(false)).toBe('[0:v]reverse[v]');
+    });
+  });
+
+  describe('getEraseFilterComplex', () => {
+    test('generates correct filter for solid color box', () => {
+      expect(getEraseFilterComplex('solid', 10, 20, 100, 50))
+        .toBe('[0:v]drawbox=x=10:y=20:w=100:h=50:color=black:t=fill[v]');
+    });
+
+    test('generates correct filter for delogo interpolation', () => {
+      expect(getEraseFilterComplex('interpolate', 10, 20, 100, 50))
+        .toBe('[0:v]delogo=x=10:y=20:w=100:h=50[v]');
+    });
+
+    test('generates correct filter for boxblur', () => {
+      expect(getEraseFilterComplex('blur', 10, 20, 100, 50))
+        .toBe('[0:v]crop=w=100:h=50:x=10:y=20,boxblur=15:5[sub];[0:v][sub]overlay=x=10:y=20[v]');
     });
   });
 
