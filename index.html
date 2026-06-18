@@ -561,10 +561,20 @@
                 </div>
                 
                 <div class="player-controls image-controls">
-                  <div class="controls-row" style="justify-content: space-between; margin-bottom: 0;">
+                  <div class="controls-row" style="justify-content: space-between; margin-bottom: 0; align-items: center; display: flex;">
                     <div class="image-dimensions-display" id="image-dimensions-display" style="font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary);">
                       0 x 0 px
                     </div>
+
+                    <div class="image-view-options" style="display: flex; align-items: center; gap: 8px;">
+                      <label for="image-view-mode" style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; margin: 0; pointer-events: none;">View:</label>
+                      <select id="image-view-mode" class="select-input" style="padding: 4px 10px; font-size: 12px; border-radius: 6px; width: auto; height: 30px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; outline: none;">
+                        <option value="fit">Fit to Screen</option>
+                        <option value="scroll-width">Fit Width (Scroll Y)</option>
+                        <option value="original">Original Size</option>
+                      </select>
+                    </div>
+
                     <div class="image-scale-display" id="image-scale-display" style="font-family: var(--font-mono); font-size: 13px; color: var(--text-muted);">
                       Scale: 100%
                     </div>

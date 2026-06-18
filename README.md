@@ -54,6 +54,10 @@ A fully featured client-side canvas image editor:
     *   Select standard print sizes: 4"x6" Photo (1200x1800 px), 5"x7" Portrait (1500x2100 px), 8"x10" Gallery (2400x3000 px), 11"x14" Premium Art (3300x4200 px), **18"x24" Poster Size** (5400x7200 px), or A4 Sheet (2480x3508 px) in either Landscape or Portrait orientation.
     *   The crop overlay automatically locks to the chosen print size aspect ratio and upscales/downscales with high-quality cubic interpolation.
     *   Custom scale multipliers: 2x, 3x, and 4x.
+*   **Viewport Scaling View Modes**:
+    *   *Fit to Screen*: Responsively scales the entire transformed image to fit completely within the preview panel without clipping, using dynamic aspect-ratio containment.
+    *   *Fit Width (Scroll Y)*: Stretches the image to the full width of the preview panel, enabling vertical scrolling.
+    *   *Original Size*: Displays the image in its original unscaled dimensions with horizontal and vertical scrollbars.
 *   **Collapsible sidebar inspectors**: Card panels can be expanded or collapsed to maximize screen space, featuring chevron indicator animations and smooth transitions.
 *   **Pixel-Perfect Export**: Exports the rotated, cropped, enhanced, and scaled region directly onto a clean canvas buffer and saves it as a high-fidelity image file.
 

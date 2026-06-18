@@ -530,6 +530,17 @@
     return currentPixels;
   }
 
+  /**
+   * Helper to map view modes to styling class names for the image viewport.
+   * @param {string} mode - The selected view mode.
+   * @returns {string} The CSS class name.
+   */
+  function getViewportClassForMode(mode) {
+    const validModes = ['fit', 'scroll-width', 'original'];
+    const activeMode = validModes.includes(mode) ? mode : 'fit';
+    return `view-mode-${activeMode}`;
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -546,7 +557,8 @@
       getSharpenKernel,
       getBlurKernel,
       applyConvolution,
-      applyEnhancementFilters
+      applyEnhancementFilters,
+      getViewportClassForMode
     };
   } else {
     window.helpers = {
@@ -563,7 +575,8 @@
       getSharpenKernel,
       getBlurKernel,
       applyConvolution,
-      applyEnhancementFilters
+      applyEnhancementFilters,
+      getViewportClassForMode
     };
   }
 })();

@@ -15,7 +15,8 @@ const {
   getSharpenKernel,
   getBlurKernel,
   applyConvolution,
-  applyEnhancementFilters
+  applyEnhancementFilters,
+  getViewportClassForMode
 } = helpers;
 
 describe('Time conversion and validation helpers', () => {
@@ -334,6 +335,26 @@ describe('Time conversion and validation helpers', () => {
         const result = applyEnhancementFilters(pixels, 2, 2, { colorBoost: 0.5 });
         expect(result[0]).toBeGreaterThan(200);
         expect(result[3]).toBe(255);
+      });
+    });
+
+    describe('getViewportClassForMode', () => {
+      test('returns view-mode-fit for fit mode', () => {
+        expect(getViewportClassForMode('fit')).toBe('view-mode-fit');
+      });
+
+      test('returns view-mode-scroll-width for scroll-width mode', () => {
+        expect(getViewportClassForMode('scroll-width')).toBe('view-mode-scroll-width');
+      });
+
+      test('returns view-mode-original for original mode', () => {
+        expect(getViewportClassForMode('original')).toBe('view-mode-original');
+      });
+
+      test('defaults to view-mode-fit for invalid mode', () => {
+        expect(getViewportClassForMode('invalid')).toBe('view-mode-fit');
+        expect(getViewportClassForMode(null)).toBe('view-mode-fit');
+        expect(getViewportClassForMode(undefined)).toBe('view-mode-fit');
       });
     });
   });

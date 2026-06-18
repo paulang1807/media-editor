@@ -1,5 +1,4 @@
-// Access helpers from global window object
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters, getViewportClassForMode } = window.helpers;
 
 // State management
 let videoPath = null;
@@ -2137,6 +2136,8 @@ function setupImageEditor() {
   const imageCropValH = document.getElementById('image-crop-val-h');
   const imageDimensionsDisplay = document.getElementById('image-dimensions-display');
   const imageScaleDisplay = document.getElementById('image-scale-display');
+  const imageViewMode = document.getElementById('image-view-mode');
+  const imageViewport = document.getElementById('image-viewport');
   
   // Export Elements
   const imageExportFilename = document.getElementById('image-export-filename');
@@ -2214,6 +2215,14 @@ function setupImageEditor() {
       imageCropControlsWrapper.style.pointerEvents = 'none';
       imageCropOverlayContainer.style.display = 'none';
       
+      // Reset view mode select
+      if (imageViewMode) {
+        imageViewMode.value = 'fit';
+      }
+      if (imageViewport) {
+        imageViewport.className = 'image-viewport view-mode-fit';
+      }
+
       // Update controls UI
       imageRotateSlider.value = 0;
       imageRotateInput.value = 0;
@@ -2238,6 +2247,17 @@ function setupImageEditor() {
     
     imageCanvas.width = dimensions.width;
     imageCanvas.height = dimensions.height;
+    
+    // Update container aspect ratio for fit mode to prevent cyclic height/width sizing
+    const imageCanvasContainer = document.getElementById('image-canvas-container');
+    if (imageCanvasContainer) {
+      const mode = imageViewMode ? imageViewMode.value : 'fit';
+      if (mode === 'fit') {
+        imageCanvasContainer.style.aspectRatio = `${dimensions.width} / ${dimensions.height}`;
+      } else {
+        imageCanvasContainer.style.aspectRatio = '';
+      }
+    }
     
     ctx.clearRect(0, 0, dimensions.width, dimensions.height);
     
@@ -3036,5 +3056,28 @@ function setupImageEditor() {
         alert(`Unexpected error during export: ${err.message}`);
       }
     }, 50);
+  });
+
+  // View mode selection change event listener
+  if (imageViewMode) {
+    imageViewMode.addEventListener('change', () => {
+      const mode = imageViewMode.value;
+      const targetClass = getViewportClassForMode(mode);
+      
+      // Remove all possible view-mode classes first
+      imageViewport.classList.remove('view-mode-fit', 'view-mode-scroll-width', 'view-mode-original');
+      imageViewport.classList.add(targetClass);
+      
+      // Redraw the image to recompute bounds, scale percentage, and crop overlays
+      drawImage();
+    });
+  }
+
+  // Resize handler on window to update image display and scale displays
+  window.addEventListener('resize', () => {
+    const navBtnImage = document.getElementById('nav-btn-image');
+    if (navBtnImage && navBtnImage.classList.contains('active') && imagePath && imageObj) {
+      drawImage();
+    }
   });
 }
