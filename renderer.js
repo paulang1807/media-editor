@@ -1,5 +1,5 @@
 // Access helpers from global window object
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters } = window.helpers;
 
 // State management
 let videoPath = null;
@@ -41,6 +41,14 @@ let imageObj = null; // HTML Image Object
 let imageRotation = 0; // Rotation angle in degrees (0 - 359)
 let imageFlipH = false; // Horizontal flip state
 let imageFlipV = false; // Vertical flip state
+
+// Image Enhancer & Sizing Preset State
+let imageEnhanceAutoContrast = false;
+let imageEnhanceColorBoost = 0; // 0 to 100
+let imageEnhanceSharpen = 0; // 0 to 100
+let imageEnhanceDenoise = 0; // 0 to 100
+let imagePrintPreset = 'original';
+let imagePrintOrientation = 'portrait'; // 'portrait' or 'landscape'
 
 // Image Cropper State
 let imageCropEnabled = false;
@@ -2241,6 +2249,23 @@ function setupImageEditor() {
     ctx.drawImage(imageObj, -imageObj.naturalWidth / 2, -imageObj.naturalHeight / 2);
     ctx.restore();
 
+    // Apply preview enhancement filters if any are active
+    if (imageEnhanceAutoContrast || imageEnhanceColorBoost > 0 || imageEnhanceSharpen > 0 || imageEnhanceDenoise > 0) {
+      try {
+        const imgData = ctx.getImageData(0, 0, imageCanvas.width, imageCanvas.height);
+        const enhancedData = applyEnhancementFilters(imgData.data, imageCanvas.width, imageCanvas.height, {
+          sharpen: imageEnhanceSharpen / 100,
+          denoise: imageEnhanceDenoise / 100,
+          colorBoost: imageEnhanceColorBoost / 100,
+          autoContrast: imageEnhanceAutoContrast
+        });
+        imgData.data.set(enhancedData);
+        ctx.putImageData(imgData, 0, 0);
+      } catch (err) {
+        console.error('Error applying preview enhancement:', err);
+      }
+    }
+
     // Update dimension display
     imageDimensionsDisplay.textContent = `${dimensions.width} x ${dimensions.height} px`;
     
@@ -2263,6 +2288,8 @@ function setupImageEditor() {
       const newScale = Math.round((newRect.width / dimensions.width) * 100);
       imageScaleDisplay.textContent = `Scale: ${newScale}%`;
     }, 50);
+
+    updateTargetResolutionDisplay();
   }
 
   // Rotate controls event listeners
@@ -2375,7 +2402,17 @@ function setupImageEditor() {
       imageCropControlsWrapper.style.opacity = '0.5';
       imageCropControlsWrapper.style.pointerEvents = 'none';
       imageCropOverlayContainer.style.display = 'none';
+      
+      // Reset print size preset if crop is disabled
+      const presetSelect = document.getElementById('image-print-preset');
+      if (presetSelect) {
+        presetSelect.value = 'original';
+        imagePrintPreset = 'original';
+        const orientationWrapper = document.getElementById('image-print-orientation-wrapper');
+        if (orientationWrapper) orientationWrapper.style.display = 'none';
+      }
     }
+    updateTargetResolutionDisplay();
   });
 
   // Aspect ratio buttons
@@ -2392,6 +2429,15 @@ function setupImageEditor() {
       btn.classList.add('active');
       imageAspectRatio = btn.getAttribute('data-ratio');
       
+      // Reset print size preset if manual aspect ratio is selected
+      const presetSelect = document.getElementById('image-print-preset');
+      if (presetSelect) {
+        presetSelect.value = 'original';
+        imagePrintPreset = 'original';
+        const orientationWrapper = document.getElementById('image-print-orientation-wrapper');
+        if (orientationWrapper) orientationWrapper.style.display = 'none';
+      }
+
       setImageAspectRatio(imageAspectRatio);
     });
   });
@@ -2545,6 +2591,7 @@ function setupImageEditor() {
     imageCropValY.value = ny;
     imageCropValW.value = nw;
     imageCropValH.value = nh;
+    updateTargetResolutionDisplay();
   }
 
   // Draggable Crop box events
@@ -2734,12 +2781,140 @@ function setupImageEditor() {
 
     drawImageCropBoxAndMasks();
     updateImageManualInputFields();
+    updateTargetResolutionDisplay();
   });
 
   document.addEventListener('mouseup', () => {
     imageIsDragging = false;
     imageDragMode = null;
   });
+
+  // Collapsible cards toggle
+  const collapsibleCards = document.querySelectorAll('.collapsible-card');
+  collapsibleCards.forEach(card => {
+    const header = card.querySelector('.clickable-header');
+    if (header) {
+      header.addEventListener('click', () => {
+        card.classList.toggle('expanded');
+      });
+    }
+  });
+
+  // Quality Enhancement controls
+  const enhanceAutoContrastCheckbox = document.getElementById('image-enhance-autocontrast');
+  const enhanceColorBoostSlider = document.getElementById('image-enhance-colorboost');
+  const enhanceColorBoostVal = document.getElementById('image-enhance-colorboost-val');
+  const enhanceSharpenSlider = document.getElementById('image-enhance-sharpen');
+  const enhanceSharpenVal = document.getElementById('image-enhance-sharpen-val');
+  const enhanceDenoiseSlider = document.getElementById('image-enhance-denoise');
+  const enhanceDenoiseVal = document.getElementById('image-enhance-denoise-val');
+  
+  // Print preset controls
+  const printPresetSelect = document.getElementById('image-print-preset');
+  const printOrientationPortrait = document.getElementById('image-print-orientation-portrait');
+  const printOrientationLandscape = document.getElementById('image-print-orientation-landscape');
+
+  enhanceAutoContrastCheckbox.addEventListener('change', () => {
+    imageEnhanceAutoContrast = enhanceAutoContrastCheckbox.checked;
+    drawImage();
+  });
+
+  let drawImageTimeout = null;
+  function throttledDrawImage() {
+    if (drawImageTimeout) clearTimeout(drawImageTimeout);
+    drawImageTimeout = setTimeout(() => {
+      drawImage();
+    }, 30);
+  }
+
+  enhanceColorBoostSlider.addEventListener('input', () => {
+    imageEnhanceColorBoost = parseInt(enhanceColorBoostSlider.value, 10);
+    enhanceColorBoostVal.textContent = `${imageEnhanceColorBoost}%`;
+    throttledDrawImage();
+  });
+
+  enhanceSharpenSlider.addEventListener('input', () => {
+    imageEnhanceSharpen = parseInt(enhanceSharpenSlider.value, 10);
+    enhanceSharpenVal.textContent = `${imageEnhanceSharpen}%`;
+    throttledDrawImage();
+  });
+
+  enhanceDenoiseSlider.addEventListener('input', () => {
+    imageEnhanceDenoise = parseInt(enhanceDenoiseSlider.value, 10);
+    enhanceDenoiseVal.textContent = `${imageEnhanceDenoise}%`;
+    throttledDrawImage();
+  });
+
+  printPresetSelect.addEventListener('change', () => {
+    imagePrintPreset = printPresetSelect.value;
+    applyPrintPresetRatio();
+  });
+
+  printOrientationPortrait.addEventListener('click', () => {
+    printOrientationPortrait.classList.add('active');
+    printOrientationLandscape.classList.remove('active');
+    imagePrintOrientation = 'portrait';
+    applyPrintPresetRatio();
+  });
+
+  printOrientationLandscape.addEventListener('click', () => {
+    printOrientationLandscape.classList.add('active');
+    printOrientationPortrait.classList.remove('active');
+    imagePrintOrientation = 'landscape';
+    applyPrintPresetRatio();
+  });
+
+  function updateTargetResolutionDisplay() {
+    if (!imageObj) return;
+    let sourceW = imageCanvas.width;
+    let sourceH = imageCanvas.height;
+    
+    if (imageCropEnabled) {
+      sourceW = Math.round(imageCropNormalized.w * imageCanvas.width);
+      sourceH = Math.round(imageCropNormalized.h * imageCanvas.height);
+    }
+    
+    const target = getPrintDimensions(imagePrintPreset, imagePrintOrientation, sourceW, sourceH);
+    const display = document.getElementById('image-target-res-display');
+    if (display) {
+      display.textContent = `${target.width} x ${target.height} px`;
+    }
+  }
+
+  function applyPrintPresetRatio() {
+    const orientationWrapper = document.getElementById('image-print-orientation-wrapper');
+    if (imagePrintPreset === 'original' || imagePrintPreset === '2x' || imagePrintPreset === '3x' || imagePrintPreset === '4x') {
+      if (orientationWrapper) orientationWrapper.style.display = 'none';
+      updateTargetResolutionDisplay();
+      return;
+    }
+    
+    if (orientationWrapper) orientationWrapper.style.display = 'block';
+    
+    let ratioStr = 'free';
+    if (imagePrintPreset === '4x6') ratioStr = imagePrintOrientation === 'portrait' ? '4:6' : '6:4';
+    else if (imagePrintPreset === '5x7') ratioStr = imagePrintOrientation === 'portrait' ? '5:7' : '7:5';
+    else if (imagePrintPreset === '8x10') ratioStr = imagePrintOrientation === 'portrait' ? '8:10' : '10:8';
+    else if (imagePrintPreset === '11x14') ratioStr = imagePrintOrientation === 'portrait' ? '11:14' : '14:11';
+    else if (imagePrintPreset === '18x24') ratioStr = imagePrintOrientation === 'portrait' ? '18:24' : '24:18';
+    else if (imagePrintPreset === 'a4') ratioStr = imagePrintOrientation === 'portrait' ? '2480:3508' : '3508:2480';
+    
+    if (!imageCropEnabled) {
+      imageCropToggle.checked = true;
+      imageCropEnabled = true;
+      imageCropControlsWrapper.style.opacity = '1';
+      imageCropControlsWrapper.style.pointerEvents = 'auto';
+      imageCropOverlayContainer.style.display = 'block';
+      imageCropNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
+    }
+    
+    ratioButtons.forEach(b => {
+      if (b) b.classList.remove('active');
+    });
+    
+    setImageAspectRatio(ratioStr);
+    updateTargetResolutionDisplay();
+  }
 
   // Export Action
   imageExportBtn.addEventListener('click', async () => {
@@ -2765,50 +2940,101 @@ function setupImageEditor() {
     imageExportBtn.disabled = true;
     imageExportBtn.textContent = 'Exporting...';
 
-    try {
-      // Create crop/rotated export canvas
-      let exportCanvas = document.createElement('canvas');
-      
-      if (imageCropEnabled) {
-        const cropX = Math.round(imageCropNormalized.x * imageCanvas.width);
-        const cropY = Math.round(imageCropNormalized.y * imageCanvas.height);
-        const cropW = Math.round(imageCropNormalized.w * imageCanvas.width);
-        const cropH = Math.round(imageCropNormalized.h * imageCanvas.height);
+    // Show progress overlay
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '20%';
+    progressPercentText.textContent = '20%';
+    progressStatusText.textContent = 'Rendering rotation and crop...';
+
+    setTimeout(async () => {
+      try {
+        // Calculate source crop dimensions relative to full resolution canvas
+        let cropX = 0, cropY = 0, cropW = imageCanvas.width, cropH = imageCanvas.height;
+        if (imageCropEnabled) {
+          cropX = Math.round(imageCropNormalized.x * imageCanvas.width);
+          cropY = Math.round(imageCropNormalized.y * imageCanvas.height);
+          cropW = Math.round(imageCropNormalized.w * imageCanvas.width);
+          cropH = Math.round(imageCropNormalized.h * imageCanvas.height);
+        }
+
+        // Get target print dimensions (takes orientation and preset into account)
+        const target = getPrintDimensions(imagePrintPreset, imagePrintOrientation, cropW, cropH);
+
+        progressProgressBar.style.width = '40%';
+        progressPercentText.textContent = '40%';
+        progressStatusText.textContent = 'Generating clean canvas buffer...';
+
+        // Create a clean rotated/flipped canvas at native size to avoid double enhancement
+        const cleanCanvas = document.createElement('canvas');
+        cleanCanvas.width = imageCanvas.width;
+        cleanCanvas.height = imageCanvas.height;
+        const cleanCtx = cleanCanvas.getContext('2d');
         
-        exportCanvas.width = cropW;
-        exportCanvas.height = cropH;
+        cleanCtx.save();
+        cleanCtx.translate(imageCanvas.width / 2, imageCanvas.height / 2);
+        cleanCtx.scale(imageFlipH ? -1 : 1, imageFlipV ? -1 : 1);
+        cleanCtx.rotate((imageRotation * Math.PI) / 180);
+        cleanCtx.drawImage(imageObj, -imageObj.naturalWidth / 2, -imageObj.naturalHeight / 2);
+        cleanCtx.restore();
+
+        progressProgressBar.style.width = '60%';
+        progressPercentText.textContent = '60%';
+        progressStatusText.textContent = 'Upscaling to print resolution...';
+
+        // Create crop/rotated export canvas at target resolution
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = target.width;
+        exportCanvas.height = target.height;
         const exportCtx = exportCanvas.getContext('2d');
         
-        // Copy the cropped region from imageCanvas
-        exportCtx.drawImage(imageCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      } else {
-        // Export entire rotated/flipped canvas
-        exportCanvas.width = imageCanvas.width;
-        exportCanvas.height = imageCanvas.height;
-        const exportCtx = exportCanvas.getContext('2d');
-        exportCtx.drawImage(imageCanvas, 0, 0);
-      }
+        // High quality image smoothing
+        exportCtx.imageSmoothingEnabled = true;
+        exportCtx.imageSmoothingQuality = 'high';
+        
+        // Draw the cropped region from cleanCanvas stretched/fitted to target print dimensions
+        exportCtx.drawImage(cleanCanvas, cropX, cropY, cropW, cropH, 0, 0, target.width, target.height);
 
-      // Convert canvas to base64 Data URL
-      const dataUrl = exportCanvas.toDataURL(`image/${imageExt === 'jpg' ? 'jpeg' : imageExt}`);
-      
-      // Save using IPC
-      const saveResult = await window.electronAPI.saveImageFile(dataUrl, finalPath);
-      
-      imageExportBtn.disabled = false;
-      imageExportBtn.textContent = 'Export Image';
+        progressProgressBar.style.width = '80%';
+        progressPercentText.textContent = '80%';
+        progressStatusText.textContent = 'Applying quality enhancement filters...';
 
-      if (saveResult.success) {
-        // Show the success dialog using the same overlay
-        outputDir = dir; // set outputDir so "Open in Finder" opens correct dir
-        showSuccessModal('Image Export Complete!', `The image "${filename}" has been successfully exported.`);
-      } else {
-        alert(`Failed to save image: ${saveResult.message}`);
+        // Get pixel data from exportCanvas to apply enhancements
+        const imgData = exportCtx.getImageData(0, 0, target.width, target.height);
+        const enhancedData = applyEnhancementFilters(imgData.data, target.width, target.height, {
+          sharpen: imageEnhanceSharpen / 100,
+          denoise: imageEnhanceDenoise / 100,
+          colorBoost: imageEnhanceColorBoost / 100,
+          autoContrast: imageEnhanceAutoContrast
+        });
+        imgData.data.set(enhancedData);
+        exportCtx.putImageData(imgData, 0, 0);
+
+        progressProgressBar.style.width = '90%';
+        progressPercentText.textContent = '90%';
+        progressStatusText.textContent = 'Saving file...';
+
+        // Convert canvas to base64 Data URL
+        const dataUrl = exportCanvas.toDataURL(`image/${imageExt === 'jpg' ? 'jpeg' : imageExt}`);
+        
+        // Save using IPC
+        const saveResult = await window.electronAPI.saveImageFile(dataUrl, finalPath);
+        
+        imageExportBtn.disabled = false;
+        imageExportBtn.textContent = 'Export Image';
+        progressOverlay.style.display = 'none';
+
+        if (saveResult.success) {
+          outputDir = dir; // set outputDir so "Open in Finder" opens correct dir
+          showSuccessModal('Image Export Complete!', `The image "${filename}" has been successfully exported.`);
+        } else {
+          alert(`Failed to save image: ${saveResult.message}`);
+        }
+      } catch (err) {
+        imageExportBtn.disabled = false;
+        imageExportBtn.textContent = 'Export Image';
+        progressOverlay.style.display = 'none';
+        alert(`Unexpected error during export: ${err.message}`);
       }
-    } catch (err) {
-      imageExportBtn.disabled = false;
-      imageExportBtn.textContent = 'Export Image';
-      alert(`Unexpected error during export: ${err.message}`);
-    }
+    }, 50);
   });
 }

@@ -591,26 +591,32 @@
             </div>
 
             <!-- Right Column: Sidebar Settings -->
-            <div class="sidebar">
-              <div class="card sidebar-card" style="margin-bottom: 20px;">
-                <div class="sidebar-header">
+            <div class="sidebar image-sidebar">
+              <!-- Edit Settings Card -->
+              <div class="card sidebar-card collapsible-card expanded" style="margin-bottom: 20px;">
+                <div class="sidebar-header clickable-header">
                   <h3>Edit Settings</h3>
+                  <span class="chevron-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </span>
                 </div>
                 
-                <div class="clips-scroll-area" style="overflow-x: hidden;">
+                <div class="card-body">
                   <!-- Rotation Settings -->
                   <div class="image-edit-section" style="margin-bottom: 24px;">
                     <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em;">Rotation & Flips</h4>
                     
                     <div class="form-group" style="margin-bottom: 16px;">
                       <label>Angle (Degrees)</label>
-                      <div class="speed-slider-row">
-                        <input type="range" id="image-rotate-slider" min="0" max="359" step="1" value="0" class="slider-input">
-                        <input type="number" id="image-rotate-input" min="-360" max="360" step="1" value="0" class="num-input speed-num-input">
+                      <div class="speed-slider-row" style="display: flex; align-items: center; gap: 12px;">
+                        <input type="range" id="image-rotate-slider" min="0" max="359" step="1" value="0" class="slider-input" style="flex: 1;">
+                        <input type="number" id="image-rotate-input" min="-360" max="360" step="1" value="0" class="num-input speed-num-input" style="width: 70px;">
                       </div>
                     </div>
 
-                    <div class="speed-presets-grid" style="grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
+                    <div class="speed-presets-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px;">
                       <button id="image-btn-rot-ccw" class="preset-btn" title="Rotate 90° CCW" style="padding: 8px 4px; font-size: 12px;">↺ 90°</button>
                       <button id="image-btn-rot-cw" class="preset-btn" title="Rotate 90° CW" style="padding: 8px 4px; font-size: 12px;">90° ↻</button>
                       <button id="image-btn-flip-h" class="preset-btn" title="Flip Horizontal" style="padding: 8px 4px; font-size: 12px;">↔ Flip</button>
@@ -632,8 +638,8 @@
                     </div>
 
                     <div id="image-crop-controls-wrapper" style="opacity: 0.5; pointer-events: none; transition: opacity 0.2s ease;">
-                      <div class="crop-presets-label">Aspect Ratio Presets</div>
-                      <div class="crop-presets-grid" style="grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px;">
+                      <div class="crop-presets-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.05em;">Aspect Ratio Presets</div>
+                      <div class="crop-presets-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px;">
                         <button class="preset-btn active" id="image-crop-ratio-free" data-ratio="free">Free</button>
                         <button class="preset-btn" id="image-crop-ratio-1-1" data-ratio="1:1">1:1</button>
                         <button class="preset-btn" id="image-crop-ratio-16-9" data-ratio="16:9">16:9</button>
@@ -666,14 +672,116 @@
                 </div>
               </div>
 
-              <!-- Save Settings -->
-              <div class="card sidebar-card export-card">
-                <h3>Export Settings</h3>
-                <div class="form-group" style="margin-bottom: 10px;">
-                  <label>Export File Name</label>
-                  <input type="text" id="image-export-filename" class="clip-name-input" placeholder="Output image filename">
+              <!-- Photo Enhancer & Print Presets Card -->
+              <div class="card sidebar-card collapsible-card" style="margin-bottom: 20px;">
+                <div class="sidebar-header clickable-header">
+                  <h3>Enhance & Print Presets</h3>
+                  <span class="chevron-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </span>
                 </div>
-                <button id="image-export-btn" class="btn btn-primary btn-lg btn-block">Export Image <span class="btn-icon">↗</span></button>
+                
+                <div class="card-body">
+                  <!-- Quality Enhancement Filters -->
+                  <div class="image-edit-section">
+                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em;">Enhancement Filters</h4>
+                    
+                    <!-- Auto-Contrast -->
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-bottom: 16px;">
+                      <input type="checkbox" id="image-enhance-autocontrast" style="width: 16px; height: 16px; cursor: pointer;">
+                      <label for="image-enhance-autocontrast" style="text-transform: none; font-size: 13px; color: var(--text-primary); cursor: pointer; letter-spacing: normal;">
+                        Enable Auto-Contrast
+                      </label>
+                    </div>
+
+                    <!-- Color Boost -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                      <label>Color Boost (Saturation)</label>
+                      <div class="speed-slider-row" style="display: flex; align-items: center; gap: 12px;">
+                        <input type="range" id="image-enhance-colorboost" min="0" max="100" step="1" value="0" class="slider-input" style="flex: 1;">
+                        <span id="image-enhance-colorboost-val" style="font-family: var(--font-mono); font-size: 12px; width: 40px; text-align: right; color: var(--text-secondary);">0%</span>
+                      </div>
+                    </div>
+
+                    <!-- Crisp Sharpen -->
+                    <div class="form-group" style="margin-bottom: 16px;">
+                      <label>Crisp Sharpening</label>
+                      <div class="speed-slider-row" style="display: flex; align-items: center; gap: 12px;">
+                        <input type="range" id="image-enhance-sharpen" min="0" max="100" step="1" value="0" class="slider-input" style="flex: 1;">
+                        <span id="image-enhance-sharpen-val" style="font-family: var(--font-mono); font-size: 12px; width: 40px; text-align: right; color: var(--text-secondary);">0%</span>
+                      </div>
+                    </div>
+
+                    <!-- Noise Reduction -->
+                    <div class="form-group">
+                      <label>Noise Reduction</label>
+                      <div class="speed-slider-row" style="display: flex; align-items: center; gap: 12px;">
+                        <input type="range" id="image-enhance-denoise" min="0" max="100" step="1" value="0" class="slider-input" style="flex: 1;">
+                        <span id="image-enhance-denoise-val" style="font-family: var(--font-mono); font-size: 12px; width: 40px; text-align: right; color: var(--text-secondary);">0%</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Printing & Scaling Presets -->
+                  <div class="image-edit-section">
+                    <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em;">Print & Download Presets</h4>
+                    
+                    <div class="form-group" style="margin-bottom: 16px;">
+                      <label for="image-print-preset">Target Size / Scale</label>
+                      <select id="image-print-preset" class="select-input" style="width: 100%;">
+                        <option value="original">Original / Cropped Size</option>
+                        <option value="2x">2x Upscale (Super Resolution)</option>
+                        <option value="3x">3x Upscale (Ultra HD)</option>
+                        <option value="4x">4x Upscale (Extreme HD)</option>
+                        <option disabled>── Print Sizes (300 DPI) ──</option>
+                        <option value="4x6">4" x 6" Photo Print (1200 x 1800 px)</option>
+                        <option value="5x7">5" x 7" Medium Portrait (1500 x 2100 px)</option>
+                        <option value="8x10">8" x 10" Gallery Print (2400 x 3000 px)</option>
+                        <option value="11x14">11" x 14" Premium Art (3300 x 4200 px)</option>
+                        <option value="18x24">18" x 24" Poster Size (5400 x 7200 px)</option>
+                        <option value="a4">A4 Sheet Document (2480 x 3508 px)</option>
+                      </select>
+                    </div>
+
+                    <!-- Orientation (Enabled only for Print sizes) -->
+                    <div id="image-print-orientation-wrapper" class="form-group" style="margin-bottom: 16px; display: none;">
+                      <label>Print Orientation</label>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="image-print-orientation-portrait" class="preset-btn active" type="button">Portrait</button>
+                        <button id="image-print-orientation-landscape" class="preset-btn" type="button">Landscape</button>
+                      </div>
+                    </div>
+
+                    <!-- Dynamic Resolution Details Box -->
+                    <div class="form-group">
+                      <label>Target Export Resolution</label>
+                      <div class="dir-path-display" id="image-target-res-display" style="font-family: var(--font-mono); font-size: 12px; color: var(--success-accent); background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; height: 32px;">
+                        0 x 0 px
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Save Settings Card -->
+              <div class="card sidebar-card export-card collapsible-card expanded">
+                <div class="sidebar-header clickable-header">
+                  <h3>Export Settings</h3>
+                  <span class="chevron-icon">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </span>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label>Export File Name</label>
+                    <input type="text" id="image-export-filename" class="clip-name-input" placeholder="Output image filename">
+                  </div>
+                  <button id="image-export-btn" class="btn btn-primary btn-lg btn-block" style="margin-top: 10px;">Export Image <span class="btn-icon">↗</span></button>
+                </div>
               </div>
             </div>
           </div>

@@ -296,6 +296,240 @@
     }
   }
 
+  /**
+   * Calculates target width and height based on print size presets or scale factors.
+   * @param {string} preset - e.g. "original", "2x", "4x6", "8x10", "18x24", "a4"
+   * @param {string} orientation - "portrait" or "landscape"
+   * @param {number} sourceWidth - input width
+   * @param {number} sourceHeight - input height
+   * @returns {{ width: number, height: number }}
+   */
+  function getPrintDimensions(preset, orientation, sourceWidth, sourceHeight) {
+    if (typeof sourceWidth !== 'number' || isNaN(sourceWidth) || sourceWidth <= 0 ||
+        typeof sourceHeight !== 'number' || isNaN(sourceHeight) || sourceHeight <= 0) {
+      return { width: 0, height: 0 };
+    }
+
+    if (!preset || preset === 'original') {
+      return { width: sourceWidth, height: sourceHeight };
+    }
+    
+    if (preset === '2x') {
+      return { width: Math.round(sourceWidth * 2), height: Math.round(sourceHeight * 2) };
+    }
+    if (preset === '3x') {
+      return { width: Math.round(sourceWidth * 3), height: Math.round(sourceHeight * 3) };
+    }
+    if (preset === '4x') {
+      return { width: Math.round(sourceWidth * 4), height: Math.round(sourceHeight * 4) };
+    }
+
+    let w = 0;
+    let h = 0;
+
+    switch (preset) {
+      case '4x6':
+        w = 1200;
+        h = 1800;
+        break;
+      case '5x7':
+        w = 1500;
+        h = 2100;
+        break;
+      case '8x10':
+        w = 2400;
+        h = 3000;
+        break;
+      case '11x14':
+        w = 3300;
+        h = 4200;
+        break;
+      case '18x24':
+        w = 5400;
+        h = 7200;
+        break;
+      case 'a4':
+        w = 2480;
+        h = 3508;
+        break;
+      default:
+        return { width: sourceWidth, height: sourceHeight };
+    }
+
+    if (orientation === 'landscape') {
+      return { width: h, height: w };
+    }
+    return { width: w, height: h };
+  }
+
+  /**
+   * Generates a 3x3 sharpen kernel matrix.
+   * @param {number} intensity - 0 to 1
+   * @returns {number[]} 9-element array
+   */
+  function getSharpenKernel(intensity) {
+    if (typeof intensity !== 'number' || isNaN(intensity) || intensity < 0) {
+      intensity = 0;
+    }
+    intensity = Math.min(1, intensity);
+    const edge = intensity === 0 ? 0 : -intensity;
+    const center = 1 + 4 * intensity;
+    return [
+      0, edge, 0,
+      edge, center, edge,
+      0, edge, 0
+    ];
+  }
+
+  /**
+   * Generates a 3x3 gaussian-like blur kernel matrix for noise reduction.
+   * @param {number} intensity - 0 to 1
+   * @returns {number[]} 9-element array
+   */
+  function getBlurKernel(intensity) {
+    if (typeof intensity !== 'number' || isNaN(intensity) || intensity < 0) {
+      intensity = 0;
+    }
+    intensity = Math.min(1, intensity);
+    const blur = [
+      1/16, 2/16, 1/16,
+      2/16, 4/16, 2/16,
+      1/16, 2/16, 1/16
+    ];
+    const identity = [
+      0, 0, 0,
+      0, 1, 0,
+      0, 0, 0
+    ];
+    const kernel = [];
+    for (let i = 0; i < 9; i++) {
+      kernel.push(identity[i] * (1 - intensity) + blur[i] * intensity);
+    }
+    return kernel;
+  }
+
+  /**
+   * Applies a 3x3 convolution matrix to an RGBA pixel array.
+   * @param {Uint8ClampedArray} pixels
+   * @param {number} width
+   * @param {number} height
+   * @param {number[]} kernel
+   * @returns {Uint8ClampedArray}
+   */
+  function applyConvolution(pixels, width, height, kernel) {
+    const side = Math.round(Math.sqrt(kernel.length));
+    const halfSide = Math.floor(side / 2);
+    const src = pixels;
+    const dst = new Uint8ClampedArray(src.length);
+
+    for (let y = 0; y < height; y++) {
+      const yOffset = y * width;
+      for (let x = 0; x < width; x++) {
+        const dstIdx = (yOffset + x) * 4;
+        let r = 0, g = 0, b = 0;
+
+        for (let cy = 0; cy < side; cy++) {
+          const scy = Math.min(height - 1, Math.max(0, y + cy - halfSide));
+          const scyOffset = scy * width;
+          const kRowOffset = cy * side;
+          for (let cx = 0; cx < side; cx++) {
+            const scx = Math.min(width - 1, Math.max(0, x + cx - halfSide));
+            const srcIdx = (scyOffset + scx) * 4;
+            const wt = kernel[kRowOffset + cx];
+
+            r += src[srcIdx] * wt;
+            g += src[srcIdx + 1] * wt;
+            b += src[srcIdx + 2] * wt;
+          }
+        }
+
+        dst[dstIdx] = Math.max(0, Math.min(255, r));
+        dst[dstIdx + 1] = Math.max(0, Math.min(255, g));
+        dst[dstIdx + 2] = Math.max(0, Math.min(255, b));
+        dst[dstIdx + 3] = src[dstIdx + 3]; // Keep alpha intact
+      }
+    }
+    return dst;
+  }
+
+  /**
+   * Applies image enhancement pipeline.
+   * @param {Uint8ClampedArray} pixelData
+   * @param {number} width
+   * @param {number} height
+   * @param {{ sharpen?: number, denoise?: number, colorBoost?: number, autoContrast?: boolean }} options
+   * @returns {Uint8ClampedArray}
+   */
+  function applyEnhancementFilters(pixelData, width, height, options) {
+    let currentPixels = pixelData;
+
+    // 1. Denoise
+    if (options.denoise && options.denoise > 0) {
+      const blurKernel = getBlurKernel(options.denoise);
+      currentPixels = applyConvolution(currentPixels, width, height, blurKernel);
+    }
+
+    // 2. Sharpen
+    if (options.sharpen && options.sharpen > 0) {
+      const sharpenKernel = getSharpenKernel(options.sharpen);
+      currentPixels = applyConvolution(currentPixels, width, height, sharpenKernel);
+    }
+
+    // 3. Contrast, Auto-Contrast & Color Boost
+    const doColorBoost = options.colorBoost && options.colorBoost > 0;
+    const doAutoContrast = options.autoContrast;
+
+    if (doColorBoost || doAutoContrast) {
+      let minL = 255;
+      let maxL = 0;
+
+      if (doAutoContrast) {
+        for (let i = 0; i < currentPixels.length; i += 4) {
+          const lum = 0.299 * currentPixels[i] + 0.587 * currentPixels[i + 1] + 0.114 * currentPixels[i + 2];
+          if (lum < minL) minL = lum;
+          if (lum > maxL) maxL = lum;
+        }
+        if (maxL === minL) {
+          maxL = 255;
+          minL = 0;
+        }
+      }
+
+      const satFactor = doColorBoost ? (1.0 + options.colorBoost) : 1.0;
+      let outputPixels = currentPixels === pixelData ? new Uint8ClampedArray(pixelData) : currentPixels;
+
+      for (let i = 0; i < outputPixels.length; i += 4) {
+        let r = outputPixels[i];
+        let g = outputPixels[i + 1];
+        let b = outputPixels[i + 2];
+
+        if (doAutoContrast) {
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          const targetLum = ((lum - minL) / (maxL - minL)) * 255;
+          const scale = lum > 0 ? (targetLum / lum) : 0;
+          r = Math.max(0, Math.min(255, r * scale));
+          g = Math.max(0, Math.min(255, g * scale));
+          b = Math.max(0, Math.min(255, b * scale));
+        }
+
+        if (doColorBoost) {
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = Math.max(0, Math.min(255, gray + (r - gray) * satFactor));
+          g = Math.max(0, Math.min(255, gray + (g - gray) * satFactor));
+          b = Math.max(0, Math.min(255, gray + (b - gray) * satFactor));
+        }
+
+        outputPixels[i] = r;
+        outputPixels[i + 1] = g;
+        outputPixels[i + 2] = b;
+      }
+
+      currentPixels = outputPixels;
+    }
+
+    return currentPixels;
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -307,7 +541,12 @@
       getSpeedRampFilterComplex,
       getRotatedCanvasDimensions,
       getReverseFilterComplex,
-      getEraseFilterComplex
+      getEraseFilterComplex,
+      getPrintDimensions,
+      getSharpenKernel,
+      getBlurKernel,
+      applyConvolution,
+      applyEnhancementFilters
     };
   } else {
     window.helpers = {
@@ -319,7 +558,12 @@
       getSpeedRampFilterComplex,
       getRotatedCanvasDimensions,
       getReverseFilterComplex,
-      getEraseFilterComplex
+      getEraseFilterComplex,
+      getPrintDimensions,
+      getSharpenKernel,
+      getBlurKernel,
+      applyConvolution,
+      applyEnhancementFilters
     };
   }
 })();

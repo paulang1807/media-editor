@@ -1511,3 +1511,52 @@ body {
 .delogo-box .crop-handle:hover {
   background-color: var(--danger-accent) !important;
 }
+
+/* Image-specific sidebar scrolling */
+.image-sidebar {
+  overflow-y: auto !important;
+  padding-right: 6px;
+}
+
+.image-sidebar .sidebar-card:first-child {
+  flex: none !important;
+}
+
+/* Collapsible sidebar cards */
+.collapsible-card .sidebar-header.clickable-header {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.collapsible-card.expanded .sidebar-header.clickable-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.collapsible-card .card-body {
+  display: none;
+}
+
+.collapsible-card.expanded .card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.collapsible-card .chevron-icon {
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.collapsible-card.expanded .chevron-icon {
+  transform: rotate(180deg);
+  color: var(--primary-accent);
+}

@@ -47,7 +47,15 @@ A fully featured client-side canvas image editor:
 *   **Draggable Crop Box Overlay**:
     *   Dashed visual crop frame with four corner handles, dimmed outer margins, and aspect ratio constraint snapping (`Free`, `1:1`, `16:9`).
     *   Synchronized manual input fields for X, Y, Width, and Height.
-*   **Pixel-Perfect Export**: Exports the rotated and cropped region directly onto a clean canvas buffer and saves it as a high-fidelity image file to a chosen directory.
+*   **Photo Quality Enhancer**:
+    *   Adjust **Crisp Sharpening** (via spatial 2D convolution matrix), **Color Boost** (saturation), **Auto-Contrast**, and **Noise Reduction** sliders to enhance photo details.
+    *   Interactive live-preview rendering updates the canvas in real time.
+*   **Print & Download Sizing Presets (300 DPI)**:
+    *   Select standard print sizes: 4"x6" Photo (1200x1800 px), 5"x7" Portrait (1500x2100 px), 8"x10" Gallery (2400x3000 px), 11"x14" Premium Art (3300x4200 px), **18"x24" Poster Size** (5400x7200 px), or A4 Sheet (2480x3508 px) in either Landscape or Portrait orientation.
+    *   The crop overlay automatically locks to the chosen print size aspect ratio and upscales/downscales with high-quality cubic interpolation.
+    *   Custom scale multipliers: 2x, 3x, and 4x.
+*   **Collapsible sidebar inspectors**: Card panels can be expanded or collapsed to maximize screen space, featuring chevron indicator animations and smooth transitions.
+*   **Pixel-Perfect Export**: Exports the rotated, cropped, enhanced, and scaled region directly onto a clean canvas buffer and saves it as a high-fidelity image file.
 
 ### 🎵 Audio Editor Section
 *   A placeholder tab showing a premium **"Coming Soon"** splash screen.

@@ -1,7 +1,22 @@
 import { describe, test, expect } from 'vitest';
 import helpers from './helpers.js';
 
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getSpeedRampFilterComplex, getRotatedCanvasDimensions, getReverseFilterComplex, getEraseFilterComplex } = helpers;
+const {
+  secondsToTimestamp,
+  timestampToSeconds,
+  isValidTimestampFormat,
+  getAudioSpeedFilter,
+  mapCropToNative,
+  getSpeedRampFilterComplex,
+  getRotatedCanvasDimensions,
+  getReverseFilterComplex,
+  getEraseFilterComplex,
+  getPrintDimensions,
+  getSharpenKernel,
+  getBlurKernel,
+  applyConvolution,
+  applyEnhancementFilters
+} = helpers;
 
 describe('Time conversion and validation helpers', () => {
   
@@ -238,6 +253,88 @@ describe('Time conversion and validation helpers', () => {
     test('generates correct filter for boxblur', () => {
       expect(getEraseFilterComplex('blur', 10, 20, 100, 50))
         .toBe('[0:v]crop=w=100:h=50:x=10:y=20,boxblur=15:5[sub];[0:v][sub]overlay=x=10:y=20[v]');
+    });
+  });
+
+  describe('Image enhancement and print size helpers', () => {
+    describe('getPrintDimensions', () => {
+      test('returns original/source dimensions for original preset', () => {
+        expect(getPrintDimensions('original', 'portrait', 800, 600)).toEqual({ width: 800, height: 600 });
+        expect(getPrintDimensions('', 'portrait', 800, 600)).toEqual({ width: 800, height: 600 });
+      });
+
+      test('multiplies dimensions for 2x, 3x, 4x presets', () => {
+        expect(getPrintDimensions('2x', 'portrait', 800, 600)).toEqual({ width: 1600, height: 1200 });
+        expect(getPrintDimensions('3x', 'landscape', 800, 600)).toEqual({ width: 2400, height: 1800 });
+        expect(getPrintDimensions('4x', 'portrait', 800, 600)).toEqual({ width: 3200, height: 2400 });
+      });
+
+      test('returns standard print sizes in portrait orientation', () => {
+        expect(getPrintDimensions('4x6', 'portrait', 800, 600)).toEqual({ width: 1200, height: 1800 });
+        expect(getPrintDimensions('8x10', 'portrait', 800, 600)).toEqual({ width: 2400, height: 3000 });
+        expect(getPrintDimensions('18x24', 'portrait', 800, 600)).toEqual({ width: 5400, height: 7200 });
+      });
+
+      test('returns standard print sizes in landscape orientation', () => {
+        expect(getPrintDimensions('4x6', 'landscape', 800, 600)).toEqual({ width: 1800, height: 1200 });
+        expect(getPrintDimensions('8x10', 'landscape', 800, 600)).toEqual({ width: 3000, height: 2400 });
+        expect(getPrintDimensions('18x24', 'landscape', 800, 600)).toEqual({ width: 7200, height: 5400 });
+      });
+
+      test('handles invalid inputs gracefully by returning 0 dimensions', () => {
+        expect(getPrintDimensions('8x10', 'portrait', 0, 600)).toEqual({ width: 0, height: 0 });
+        expect(getPrintDimensions('8x10', 'portrait', 800, -5)).toEqual({ width: 0, height: 0 });
+      });
+    });
+
+    describe('getSharpenKernel', () => {
+      test('returns correct kernel values based on intensity', () => {
+        expect(getSharpenKernel(0)).toEqual([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+        expect(getSharpenKernel(1)).toEqual([0, -1, 0, -1, 5, -1, 0, -1, 0]);
+        
+        const kernelHalf = getSharpenKernel(0.5);
+        expect(kernelHalf[1]).toBe(-0.5);
+        expect(kernelHalf[4]).toBe(3);
+      });
+    });
+
+    describe('getBlurKernel', () => {
+      test('returns correct kernel values based on intensity', () => {
+        expect(getBlurKernel(0)).toEqual([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+        
+        const kernelFull = getBlurKernel(1);
+        expect(kernelFull[0]).toBe(1/16);
+        expect(kernelFull[4]).toBe(4/16);
+      });
+    });
+
+    describe('applyConvolution', () => {
+      test('correctly convolves standard pixel array', () => {
+        const pixels = new Uint8ClampedArray(36);
+        pixels.fill(100);
+        for(let i=3; i<36; i+=4) pixels[i] = 255;
+        
+        const identity = [0, 0, 0, 0, 1, 0, 0, 0, 0];
+        const result = applyConvolution(pixels, 3, 3, identity);
+        
+        expect(result[0]).toBe(100);
+        expect(result[3]).toBe(255);
+      });
+    });
+
+    describe('applyEnhancementFilters', () => {
+      test('performs color saturation adjustments', () => {
+        const pixels = new Uint8ClampedArray([
+          200, 50, 50, 255,
+          50, 200, 50, 255,
+          50, 50, 200, 255,
+          100, 100, 100, 255
+        ]);
+
+        const result = applyEnhancementFilters(pixels, 2, 2, { colorBoost: 0.5 });
+        expect(result[0]).toBeGreaterThan(200);
+        expect(result[3]).toBe(255);
+      });
     });
   });
 
