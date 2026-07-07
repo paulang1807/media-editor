@@ -1,4 +1,4 @@
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters, getViewportClassForMode } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters, getViewportClassForMode, replaceExtension } = window.helpers;
 
 // State management
 let videoPath = null;
@@ -2140,6 +2140,7 @@ function setupImageEditor() {
   const imageViewport = document.getElementById('image-viewport');
   
   // Export Elements
+  const imageExportFormat = document.getElementById('image-export-format');
   const imageExportFilename = document.getElementById('image-export-filename');
   const imageExportBtn = document.getElementById('image-export-btn');
 
@@ -2200,7 +2201,21 @@ function setupImageEditor() {
     
     loadedImageName.textContent = name;
     loadedImageSize.textContent = `${(size / 1024).toFixed(1)} KB`;
-    imageExportFilename.value = `${imageBaseName}_edited.${imageExt}`;
+    
+    const extLower = imageExt.toLowerCase();
+    if (extLower === 'png') {
+      imageExportFormat.value = 'png';
+      imageExportFilename.value = `${imageBaseName}_edited.png`;
+    } else if (extLower === 'jpg' || extLower === 'jpeg') {
+      imageExportFormat.value = 'jpeg';
+      imageExportFilename.value = `${imageBaseName}_edited.jpg`;
+    } else if (extLower === 'webp') {
+      imageExportFormat.value = 'webp';
+      imageExportFilename.value = `${imageBaseName}_edited.webp`;
+    } else {
+      imageExportFormat.value = 'png';
+      imageExportFilename.value = `${imageBaseName}_edited.png`;
+    }
 
     // Load image object
     imageObj = new Image();
@@ -2936,6 +2951,33 @@ function setupImageEditor() {
     updateTargetResolutionDisplay();
   }
 
+  // Sync export format selection and export filename input
+  if (imageExportFormat) {
+    imageExportFormat.addEventListener('change', () => {
+      const format = imageExportFormat.value;
+      const ext = format === 'jpeg' ? 'jpg' : format;
+      imageExportFilename.value = replaceExtension(imageExportFilename.value, ext);
+    });
+  }
+
+  if (imageExportFilename) {
+    imageExportFilename.addEventListener('input', () => {
+      const filename = imageExportFilename.value.trim();
+      if (!filename) return;
+      const lastDot = filename.lastIndexOf('.');
+      if (lastDot !== -1) {
+        const ext = filename.substring(lastDot + 1).toLowerCase();
+        if (ext === 'png') {
+          imageExportFormat.value = 'png';
+        } else if (ext === 'jpg' || ext === 'jpeg') {
+          imageExportFormat.value = 'jpeg';
+        } else if (ext === 'webp') {
+          imageExportFormat.value = 'webp';
+        }
+      }
+    });
+  }
+
   // Export Action
   imageExportBtn.addEventListener('click', async () => {
     if (!imagePath || !imageObj) {
@@ -3034,7 +3076,14 @@ function setupImageEditor() {
         progressStatusText.textContent = 'Saving file...';
 
         // Convert canvas to base64 Data URL
-        const dataUrl = exportCanvas.toDataURL(`image/${imageExt === 'jpg' ? 'jpeg' : imageExt}`);
+        const ext = filename.substring(filename.lastIndexOf('.') + 1).toLowerCase();
+        let mimeType = 'image/png';
+        if (ext === 'jpg' || ext === 'jpeg') {
+          mimeType = 'image/jpeg';
+        } else if (ext === 'webp') {
+          mimeType = 'image/webp';
+        }
+        const dataUrl = exportCanvas.toDataURL(mimeType);
         
         // Save using IPC
         const saveResult = await window.electronAPI.saveImageFile(dataUrl, finalPath);

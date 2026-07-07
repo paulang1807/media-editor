@@ -59,7 +59,7 @@ A fully featured client-side canvas image editor:
     *   *Fit Width (Scroll Y)*: Stretches the image to the full width of the preview panel, enabling vertical scrolling.
     *   *Original Size*: Displays the image in its original unscaled dimensions with horizontal and vertical scrollbars.
 *   **Collapsible sidebar inspectors**: Card panels can be expanded or collapsed to maximize screen space, featuring chevron indicator animations and smooth transitions.
-*   **Pixel-Perfect Export**: Exports the rotated, cropped, enhanced, and scaled region directly onto a clean canvas buffer and saves it as a high-fidelity image file.
+*   **Pixel-Perfect Export**: Exports the rotated, cropped, enhanced, and scaled region directly onto a clean canvas buffer. Supports saving/exporting to common formats including **PNG**, **JPEG/JPG**, and **WebP**.
 
 ### 🎵 Audio Editor Section
 *   A placeholder tab showing a premium **"Coming Soon"** splash screen.
@@ -174,7 +174,7 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 2.  Drag and drop an image or click **Browse Image** to load.
 3.  **Rotate / Flip**: Use the top visual handle to rotate by dragging, adjust the slider, or click preset rotation/mirroring buttons.
 4.  **Crop**: Check **Enable Cropping Area**. Drag the visual frame boundaries or corner knobs, or enter precise coordinates in the sidebar. Select aspect ratio presets to lock dimensions.
-5.  **Export**: Enter the output filename, click **Export Image**, and choose a destination folder.
+5.  **Export**: Select the desired output format (PNG, JPEG, WebP) from the dropdown selector (which automatically synchronizes the extension in the filename field, and vice versa), verify/modify the export file name, click **Export Image**, and choose a destination folder.
 
 ![Image Editor UI Mockup](./image_editor_ui_mockup.png)
 

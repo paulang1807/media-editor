@@ -541,6 +541,19 @@
     return `view-mode-${activeMode}`;
   }
 
+  /**
+   * Replaces the file extension of a filename with a new extension.
+   * @param {string} filename - The original filename.
+   * @param {string} newExt - The new extension (without the dot, e.g., 'jpg', 'png', 'webp').
+   * @returns {string} The filename with the new extension.
+   */
+  function replaceExtension(filename, newExt) {
+    if (typeof filename !== 'string' || !filename) return '';
+    const lastDot = filename.lastIndexOf('.');
+    const base = lastDot !== -1 ? filename.substring(0, lastDot) : filename;
+    return `${base}.${newExt}`;
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -558,7 +571,8 @@
       getBlurKernel,
       applyConvolution,
       applyEnhancementFilters,
-      getViewportClassForMode
+      getViewportClassForMode,
+      replaceExtension
     };
   } else {
     window.helpers = {
@@ -576,7 +590,8 @@
       getBlurKernel,
       applyConvolution,
       applyEnhancementFilters,
-      getViewportClassForMode
+      getViewportClassForMode,
+      replaceExtension
     };
   }
 })();

@@ -16,7 +16,8 @@ const {
   getBlurKernel,
   applyConvolution,
   applyEnhancementFilters,
-  getViewportClassForMode
+  getViewportClassForMode,
+  replaceExtension
 } = helpers;
 
 describe('Time conversion and validation helpers', () => {
@@ -355,6 +356,25 @@ describe('Time conversion and validation helpers', () => {
         expect(getViewportClassForMode('invalid')).toBe('view-mode-fit');
         expect(getViewportClassForMode(null)).toBe('view-mode-fit');
         expect(getViewportClassForMode(undefined)).toBe('view-mode-fit');
+      });
+    });
+
+    describe('replaceExtension', () => {
+      test('replaces extension of filename with standard extension', () => {
+        expect(replaceExtension('image.png', 'jpg')).toBe('image.jpg');
+        expect(replaceExtension('archive.tar.gz', 'zip')).toBe('archive.tar.zip');
+        expect(replaceExtension('photo.jpeg', 'webp')).toBe('photo.webp');
+      });
+
+      test('appends extension if filename has no extension', () => {
+        expect(replaceExtension('image', 'png')).toBe('image.png');
+        expect(replaceExtension('.hidden', 'png')).toBe('.png');
+      });
+
+      test('handles empty or non-string inputs gracefully', () => {
+        expect(replaceExtension('', 'png')).toBe('');
+        expect(replaceExtension(null, 'png')).toBe('');
+        expect(replaceExtension(undefined, 'png')).toBe('');
       });
     });
   });
