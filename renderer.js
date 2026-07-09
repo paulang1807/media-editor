@@ -109,6 +109,14 @@ const panelSpeed = document.getElementById('panel-speed');
 const panelCrop = document.getElementById('panel-crop');
 const panelReverse = document.getElementById('panel-reverse');
 
+// Image Sidebar Tabs & Panels
+const imageTabEdit = document.getElementById('image-tab-edit');
+const imageTabEnhance = document.getElementById('image-tab-enhance');
+const imageTabExport = document.getElementById('image-tab-export');
+const imagePanelEdit = document.getElementById('image-panel-edit');
+const imagePanelEnhance = document.getElementById('image-panel-enhance');
+const imagePanelExport = document.getElementById('image-panel-export');
+
 // Reverse Changer Elements
 const reverseAudioToggle = document.getElementById('reverse-audio-toggle');
 const reverseFilenameInput = document.getElementById('reverse-filename-input');
@@ -187,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSidebarEvents();
   setupExportEvents();
   setupTabEvents();
+  setupImageTabEvents();
   setupSpeedChangerEvents();
   setupCropperEvents();
   setupReverseEvents();
@@ -792,6 +801,42 @@ function setupTabEvents() {
       updateDelogoOverlayLayout();
     }
   });
+}
+
+// Image Editor Tab Toggling Logic
+function setupImageTabEvents() {
+  if (imageTabEdit && imagePanelEdit) {
+    imageTabEdit.addEventListener('click', () => {
+      imageTabEdit.classList.add('active');
+      imageTabEnhance.classList.remove('active');
+      imageTabExport.classList.remove('active');
+      imagePanelEdit.classList.add('active');
+      imagePanelEnhance.classList.remove('active');
+      imagePanelExport.classList.remove('active');
+    });
+  }
+
+  if (imageTabEnhance && imagePanelEnhance) {
+    imageTabEnhance.addEventListener('click', () => {
+      imageTabEnhance.classList.add('active');
+      imageTabEdit.classList.remove('active');
+      imageTabExport.classList.remove('active');
+      imagePanelEnhance.classList.add('active');
+      imagePanelEdit.classList.remove('active');
+      imagePanelExport.classList.remove('active');
+    });
+  }
+
+  if (imageTabExport && imagePanelExport) {
+    imageTabExport.addEventListener('click', () => {
+      imageTabExport.classList.add('active');
+      imageTabEdit.classList.remove('active');
+      imageTabEnhance.classList.remove('active');
+      imagePanelExport.classList.add('active');
+      imagePanelEdit.classList.remove('active');
+      imagePanelEnhance.classList.remove('active');
+    });
+  }
 }
 
 // 7. Speed Changer Form Logic & Export

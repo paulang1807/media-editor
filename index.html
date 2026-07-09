@@ -525,6 +525,41 @@
 
         <!-- Active Workspace: Image Editor Grid -->
         <div id="image-editor-workspace" class="editor-workspace" style="display: none;">
+          <!-- Left Vertical Navigation Bar (Image) -->
+          <div class="left-nav-bar">
+            <div class="nav-logo" title="Media Editor">
+              <img src="./icon.png" alt="Media Editor Logo" width="32" height="32" style="border-radius: 8px;">
+            </div>
+            
+            <div class="nav-items">
+              <button id="image-tab-edit" class="nav-item active" title="Transform & Crop">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6.13 1L6 16a2 2 0 0 0 2 2h15"></path>
+                  <path d="M1 6.13L16 6a2 2 0 0 1 2 2v15"></path>
+                </svg>
+                <span class="nav-label">Edit</span>
+              </button>
+              
+              <button id="image-tab-enhance" class="nav-item" title="Enhance & Filter">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 2v20"></path>
+                  <path d="M12 12h10"></path>
+                </svg>
+                <span class="nav-label">Enhance</span>
+              </button>
+              
+              <button id="image-tab-export" class="nav-item" title="Export & Save">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span class="nav-label">Export</span>
+              </button>
+            </div>
+          </div>
+
           <div class="workspace-body">
             
             <!-- Left Column: Image Preview Area -->
@@ -602,18 +637,14 @@
 
             <!-- Right Column: Sidebar Settings -->
             <div class="sidebar image-sidebar">
-              <!-- Edit Settings Card -->
-              <div class="card sidebar-card collapsible-card expanded" style="margin-bottom: 20px;">
-                <div class="sidebar-header clickable-header">
-                  <h3>Edit Settings</h3>
-                  <span class="chevron-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </span>
-                </div>
-                
-                <div class="card-body">
+              <!-- Image Tool Panel 1: Edit Settings -->
+              <div id="image-panel-edit" class="tool-panel active">
+                <div class="card sidebar-card" style="margin-bottom: 20px;">
+                  <div class="sidebar-header">
+                    <h3>Edit Settings</h3>
+                  </div>
+                  
+                  <div class="card-body">
                   <!-- Rotation Settings -->
                   <div class="image-edit-section" style="margin-bottom: 24px;">
                     <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em;">Rotation & Flips</h4>
@@ -681,19 +712,16 @@
                   </div>
                 </div>
               </div>
+              </div>
 
-              <!-- Photo Enhancer & Print Presets Card -->
-              <div class="card sidebar-card collapsible-card" style="margin-bottom: 20px;">
-                <div class="sidebar-header clickable-header">
-                  <h3>Enhance & Print Presets</h3>
-                  <span class="chevron-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </span>
-                </div>
-                
-                <div class="card-body">
+              <!-- Image Tool Panel 2: Enhance & Print Presets -->
+              <div id="image-panel-enhance" class="tool-panel">
+                <div class="card sidebar-card" style="margin-bottom: 20px;">
+                  <div class="sidebar-header">
+                    <h3>Enhance & Print Presets</h3>
+                  </div>
+                  
+                  <div class="card-body">
                   <!-- Quality Enhancement Filters -->
                   <div class="image-edit-section">
                     <h4 style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.05em;">Enhancement Filters</h4>
@@ -769,23 +797,20 @@
                       <label>Target Export Resolution</label>
                       <div class="dir-path-display" id="image-target-res-display" style="font-family: var(--font-mono); font-size: 12px; color: var(--success-accent); background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.15); display: flex; align-items: center; justify-content: center; height: 32px;">
                         0 x 0 px
-                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+              </div>
+              </div>
 
-              <!-- Save Settings Card -->
-              <div class="card sidebar-card export-card collapsible-card expanded">
-                <div class="sidebar-header clickable-header">
-                  <h3>Export Settings</h3>
-                  <span class="chevron-icon">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </span>
-                </div>
-                <div class="card-body">
+              <!-- Image Tool Panel 3: Export Settings -->
+              <div id="image-panel-export" class="tool-panel">
+                <div class="card sidebar-card export-card">
+                  <div class="sidebar-header">
+                    <h3>Export Settings</h3>
+                  </div>
+                  <div class="card-body">
                   <div class="form-group" style="margin-bottom: 16px;">
                     <label for="image-export-format">Export Format</label>
                     <select id="image-export-format" class="select-input" style="width: 100%;">
@@ -800,6 +825,7 @@
                   </div>
                   <button id="image-export-btn" class="btn btn-primary btn-lg btn-block" style="margin-top: 10px;">Export Image <span class="btn-icon">↗</span></button>
                 </div>
+              </div>
               </div>
             </div>
           </div>
