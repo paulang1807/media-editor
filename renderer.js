@@ -109,6 +109,14 @@ const panelSpeed = document.getElementById('panel-speed');
 const panelCrop = document.getElementById('panel-crop');
 const panelReverse = document.getElementById('panel-reverse');
 
+// Global Export Elements
+const tabExport = document.getElementById('tab-export');
+const panelExport = document.getElementById('panel-export');
+const videoExportFormat = document.getElementById('video-export-format');
+const exportTabDirPath = document.getElementById('export-tab-dir-path');
+const exportTabBrowseBtn = document.getElementById('export-tab-browse-btn');
+const exportTabAlwaysPrompt = document.getElementById('export-tab-always-prompt');
+
 // Image Sidebar Tabs & Panels
 const imageTabEdit = document.getElementById('image-tab-edit');
 const imageTabEnhance = document.getElementById('image-tab-enhance');
@@ -269,7 +277,8 @@ function loadVideo(filePath, fileName) {
   
   const lastDot = fileName.lastIndexOf('.');
   videoBaseName = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
-  videoExt = lastDot !== -1 ? fileName.substring(lastDot + 1) : 'mp4';
+  const originalExt = lastDot !== -1 ? fileName.substring(lastDot + 1) : 'mp4';
+  videoExt = settings.videoFormat ? settings.videoFormat : originalExt;
   
   // Set default output directory (null initially, will prompt)
   outputDir = null;
@@ -722,84 +731,43 @@ function setupExportEvents() {
 }
 
 // 6. Tab Toggling Logic
+// 6. Tab Toggling Logic
 function setupTabEvents() {
-  tabSplit.addEventListener('click', () => {
-    tabSplit.classList.add('active');
-    tabSpeed.classList.remove('active');
-    tabCrop.classList.remove('active');
-    tabReverse.classList.remove('active');
-    tabDelogo.classList.remove('active');
-    panelSplit.classList.add('active');
-    panelSpeed.classList.remove('active');
-    panelCrop.classList.remove('active');
-    panelReverse.classList.remove('active');
-    panelDelogo.classList.remove('active');
-    cropOverlayContainer.style.display = 'none';
-    delogoOverlayContainer.style.display = 'none';
-  });
+  const tabs = [
+    { tab: tabSplit, panel: panelSplit, onActivate: () => {} },
+    { tab: tabSpeed, panel: panelSpeed, onActivate: () => {} },
+    { tab: tabCrop, panel: panelCrop, onActivate: () => { if (videoPath) updateCropOverlayLayout(); } },
+    { tab: tabReverse, panel: panelReverse, onActivate: () => {} },
+    { tab: tabDelogo, panel: panelDelogo, onActivate: () => { if (videoPath) updateDelogoOverlayLayout(); } },
+    { tab: tabExport, panel: panelExport, onActivate: () => {} }
+  ];
 
-  tabSpeed.addEventListener('click', () => {
-    tabSpeed.classList.add('active');
-    tabSplit.classList.remove('active');
-    tabCrop.classList.remove('active');
-    tabReverse.classList.remove('active');
-    tabDelogo.classList.remove('active');
-    panelSpeed.classList.add('active');
-    panelSplit.classList.remove('active');
-    panelCrop.classList.remove('active');
-    panelReverse.classList.remove('active');
-    panelDelogo.classList.remove('active');
-    cropOverlayContainer.style.display = 'none';
-    delogoOverlayContainer.style.display = 'none';
-  });
+  tabs.forEach(({ tab, panel, onActivate }) => {
+    if (!tab) return;
+    tab.addEventListener('click', () => {
+      // Deactivate all
+      tabs.forEach(t => {
+        if(t.tab) t.tab.classList.remove('active');
+        if(t.panel) t.panel.classList.remove('active');
+      });
+      // Activate clicked
+      tab.classList.add('active');
+      if (panel) panel.classList.add('active');
+      
+      // Handle special overlays based on active tab
+      if (tab === tabCrop) {
+        cropOverlayContainer.style.display = 'block';
+        delogoOverlayContainer.style.display = 'none';
+      } else if (tab === tabDelogo) {
+        delogoOverlayContainer.style.display = 'block';
+        cropOverlayContainer.style.display = 'none';
+      } else {
+        cropOverlayContainer.style.display = 'none';
+        delogoOverlayContainer.style.display = 'none';
+      }
 
-  tabCrop.addEventListener('click', () => {
-    tabCrop.classList.add('active');
-    tabSplit.classList.remove('active');
-    tabSpeed.classList.remove('active');
-    tabReverse.classList.remove('active');
-    tabDelogo.classList.remove('active');
-    panelCrop.classList.add('active');
-    panelSplit.classList.remove('active');
-    panelSpeed.classList.remove('active');
-    panelReverse.classList.remove('active');
-    panelDelogo.classList.remove('active');
-    delogoOverlayContainer.style.display = 'none';
-    if (videoPath) {
-      updateCropOverlayLayout();
-    }
-  });
-
-  tabReverse.addEventListener('click', () => {
-    tabReverse.classList.add('active');
-    tabSplit.classList.remove('active');
-    tabSpeed.classList.remove('active');
-    tabCrop.classList.remove('active');
-    tabDelogo.classList.remove('active');
-    panelReverse.classList.add('active');
-    panelSplit.classList.remove('active');
-    panelSpeed.classList.remove('active');
-    panelCrop.classList.remove('active');
-    panelDelogo.classList.remove('active');
-    cropOverlayContainer.style.display = 'none';
-    delogoOverlayContainer.style.display = 'none';
-  });
-
-  tabDelogo.addEventListener('click', () => {
-    tabDelogo.classList.add('active');
-    tabSplit.classList.remove('active');
-    tabSpeed.classList.remove('active');
-    tabCrop.classList.remove('active');
-    tabReverse.classList.remove('active');
-    panelDelogo.classList.add('active');
-    panelSplit.classList.remove('active');
-    panelSpeed.classList.remove('active');
-    panelCrop.classList.remove('active');
-    panelReverse.classList.remove('active');
-    cropOverlayContainer.style.display = 'none';
-    if (videoPath) {
-      updateDelogoOverlayLayout();
-    }
+      onActivate();
+    });
   });
 }
 
@@ -2056,6 +2024,19 @@ function loadSettings() {
   if (splitAccuracySelect) {
     splitAccuracySelect.value = settings.defaultAccuracy;
   }
+  
+  // Sync export tab UI
+  if (exportTabDirPath) {
+    exportTabDirPath.textContent = settings.defaultExportDir || 'Not set (Will prompt every time)';
+  }
+  if (exportTabAlwaysPrompt) {
+    exportTabAlwaysPrompt.checked = settings.alwaysPrompt;
+  }
+  
+  // Try to load video format setting if we saved it
+  if (settings.videoFormat && videoExportFormat) {
+    videoExportFormat.value = settings.videoFormat;
+  }
 }
 
 function saveSettings() {
@@ -2102,6 +2083,64 @@ function setupSettingsEvents() {
 
   settingsCancelBtn.addEventListener('click', () => {
     settingsModal.style.display = 'none';
+  });
+
+  // Export Tab Directory Settings logic
+  if (exportTabBrowseBtn) {
+    exportTabBrowseBtn.addEventListener('click', async () => {
+      const dir = await window.electronAPI.selectOutputDirectory(settings.defaultExportDir);
+      if (dir) {
+        settings.defaultExportDir = dir;
+        exportTabDirPath.textContent = dir;
+        saveSettings();
+      }
+    });
+  }
+
+  if (exportTabAlwaysPrompt) {
+    exportTabAlwaysPrompt.addEventListener('change', () => {
+      settings.alwaysPrompt = exportTabAlwaysPrompt.checked;
+      saveSettings();
+    });
+  }
+
+  if (videoExportFormat) {
+    videoExportFormat.addEventListener('change', () => {
+      const format = videoExportFormat.value;
+      settings.videoFormat = format;
+      saveSettings();
+      updateAllVideoExtensions(format);
+    });
+  }
+}
+
+function updateAllVideoExtensions(newExt) {
+  // We need to change the extension in the inputs
+  const inputs = [
+    speedFilenameInput,
+    cropFilenameInput,
+    reverseFilenameInput,
+    delogoFilenameInput
+  ];
+  
+  inputs.forEach(input => {
+    if (input && input.value) {
+      input.value = replaceExtension(input.value, newExt);
+    }
+  });
+
+  // Split clips logic: update their display names and stored names
+  if (videoExt) {
+    videoExt = newExt; // Keep track of the active global extension
+  }
+  
+  // Re-render clip items if any exist
+  const clips = Array.from(document.querySelectorAll('.clip-item'));
+  clips.forEach((clipEl, index) => {
+    const input = clipEl.querySelector('.clip-name-input');
+    if (input && input.value) {
+      input.value = replaceExtension(input.value, newExt);
+    }
   });
 }
 

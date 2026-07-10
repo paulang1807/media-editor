@@ -129,6 +129,17 @@
                 </svg>
                 <span class="nav-label">Erase</span>
               </button>
+
+              <div class="nav-spacer" style="flex-grow: 1;"></div>
+
+              <button id="tab-export" class="nav-item" title="Global Export Settings">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span class="nav-label">Export</span>
+              </button>
             </div>
           </div>
 
@@ -246,17 +257,15 @@
                   </div>
                 </div>
 
-                <!-- Export Settings -->
-                <div class="card sidebar-card export-card">
-                  <h3>Export Settings</h3>
-                  
+                <!-- Generate Settings -->
+                <div class="card sidebar-card">
                   <div class="form-group">
                     <label for="split-accuracy">Splitting Mode</label>
                     <select id="split-accuracy" class="select-input">
                       <option value="fast">Fast/Lossless (No Re-encoding)</option>
                       <option value="accurate">Frame-Accurate (Re-encoded)</option>
                     </select>
-                    <small class="help-text">Fast mode splits instantly but may snap to the nearest keyframe. Accurate mode splits at the exact millisecond but takes longer.</small>
+                    <small class="help-text" style="display: block; margin-bottom: 12px; margin-top: 8px;">Fast mode splits instantly but may snap to the nearest keyframe. Accurate mode splits at the exact millisecond but takes longer.</small>
                   </div>
 
                   <button id="generate-btn" class="btn btn-primary btn-lg btn-block">Generate Clips <span class="btn-icon">↗</span></button>
@@ -312,8 +321,7 @@
                 </div>
 
                 <!-- Speed Export Card -->
-                <div class="card sidebar-card export-card">
-                  <h3>Export Settings</h3>
+                <div class="card sidebar-card">
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Applying speed adjustments requires re-encoding the video and audio streams to preserve synchronization.</small>
                   <button id="speed-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Speed & Export <span class="btn-icon">↗</span></button>
                 </div>
@@ -396,8 +404,7 @@
                 </div>
 
                 <!-- Crop Export Card -->
-                <div class="card sidebar-card export-card">
-                  <h3>Export Settings</h3>
+                <div class="card sidebar-card">
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Cropping requires re-encoding the video stream to apply the new dimensions.</small>
                   <button id="crop-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Crop & Export <span class="btn-icon">↗</span></button>
                 </div>
@@ -429,8 +436,7 @@
                 </div>
 
                 <!-- Reverse Export Card -->
-                <div class="card sidebar-card export-card">
-                  <h3>Export Settings</h3>
+                <div class="card sidebar-card">
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Reversing requires re-encoding the video and audio streams to construct the frames in reverse order.</small>
                   <button id="reverse-generate-btn" class="btn btn-primary btn-lg btn-block">Reverse & Export <span class="btn-icon">↗</span></button>
                 </div>
@@ -488,10 +494,43 @@
                 </div>
 
                 <!-- Delogo Export Card -->
-                <div class="card sidebar-card export-card">
-                  <h3>Export Settings</h3>
+                <div class="card sidebar-card">
                   <small class="help-text" style="display: block; margin-bottom: 12px;">Removing text overlays requires re-encoding the video stream to apply the delogo filter.</small>
                   <button id="delogo-generate-btn" class="btn btn-primary btn-lg btn-block">Apply Erase & Export <span class="btn-icon">↗</span></button>
+                </div>
+              </div>
+
+              <!-- Tool Panel 6: Global Export Options -->
+              <div id="panel-export" class="tool-panel">
+                <div class="card sidebar-card">
+                  <div class="sidebar-header">
+                    <h3>Global Export Options</h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                      <label for="video-export-format">Video Format</label>
+                      <select id="video-export-format" class="select-input" style="width: 100%;">
+                        <option value="mp4">MP4 (.mp4)</option>
+                        <option value="mov">MOV (.mov)</option>
+                        <option value="mkv">MKV (.mkv)</option>
+                        <option value="avi">AVI (.avi)</option>
+                        <option value="webm">WebM (.webm)</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 16px;">
+                      <label>Default Output Directory</label>
+                      <div class="dir-picker">
+                        <div class="dir-path-display" id="export-tab-dir-path" style="font-size: 11px;">Not set (Will prompt every time)</div>
+                        <button id="export-tab-browse-btn" class="btn btn-secondary">Browse</button>
+                      </div>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                      <input type="checkbox" id="export-tab-always-prompt" checked>
+                      <label for="export-tab-always-prompt">Always prompt for output destination</label>
+                    </div>
+                  </div>
                 </div>
               </div>
 
