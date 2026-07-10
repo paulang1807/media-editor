@@ -151,6 +151,9 @@ const speedFilenameInput = document.getElementById('speed-filename-input');
 const speedGenerateBtn = document.getElementById('speed-generate-btn');
 const btnSpeedModeConstant = document.getElementById('speed-mode-constant');
 const btnSpeedModeRamp = document.getElementById('speed-mode-ramp');
+const btnSpeedModeTimelapse = document.getElementById('speed-mode-timelapse');
+const speedPresetsStandard = document.getElementById('speed-presets-standard');
+const speedPresetsTimelapse = document.getElementById('speed-presets-timelapse');
 let speedMode = 'constant';
 
 // Cropper UI Elements
@@ -828,10 +831,18 @@ function setupSpeedChangerEvents() {
     speedMultiplier = val;
     
     // Clamp to slider min/max if possible
-    if (val >= 0.25 && val <= 4.0) {
-      speedSlider.value = val;
+    if (speedMode === 'timelapse') {
+      if (val >= 0.25 && val <= 100.0) {
+        speedSlider.value = val;
+      } else {
+        speedSlider.value = Math.min(Math.max(val, 0.25), 100.0);
+      }
     } else {
-      speedSlider.value = 1.0; // Reset slider position if out of bounds
+      if (val >= 0.25 && val <= 4.0) {
+        speedSlider.value = val;
+      } else {
+        speedSlider.value = 1.0; // Reset slider position if out of bounds
+      }
     }
     
     highlightPresetButton(val);
@@ -839,20 +850,57 @@ function setupSpeedChangerEvents() {
   });
 
   // Speed Mode Selector Click Event Listeners
-  if (btnSpeedModeConstant && btnSpeedModeRamp) {
-    btnSpeedModeConstant.addEventListener('click', () => {
-      speedMode = 'constant';
-      btnSpeedModeConstant.classList.add('active');
-      btnSpeedModeRamp.classList.remove('active');
-      updateSpeedFilenamePreview();
-    });
+  if (btnSpeedModeConstant && btnSpeedModeRamp && btnSpeedModeTimelapse) {
+    function setSpeedMode(mode) {
+      speedMode = mode;
+      
+      // Update UI buttons
+      btnSpeedModeConstant.classList.toggle('active', mode === 'constant');
+      btnSpeedModeRamp.classList.toggle('active', mode === 'ramp');
+      btnSpeedModeTimelapse.classList.toggle('active', mode === 'timelapse');
 
-    btnSpeedModeRamp.addEventListener('click', () => {
-      speedMode = 'ramp';
-      btnSpeedModeRamp.classList.add('active');
-      btnSpeedModeConstant.classList.remove('active');
+      // Toggle presets grids
+      if (speedPresetsStandard && speedPresetsTimelapse) {
+        if (mode === 'timelapse') {
+          speedPresetsStandard.style.display = 'none';
+          speedPresetsTimelapse.style.display = 'grid';
+          // Update constraints for timelapse (allow up to 1000x)
+          speedInput.max = '1000.0';
+          speedSlider.max = '100.0';
+          speedSlider.step = '10.0';
+          
+          // Force a minimum default speed for timelapse if currently low
+          if (speedMultiplier < 10.0) {
+            speedMultiplier = 60.0;
+            speedInput.value = '60.00';
+            speedSlider.value = 60.0;
+          }
+        } else {
+          speedPresetsStandard.style.display = 'grid';
+          speedPresetsTimelapse.style.display = 'none';
+          // Restore normal constraints
+          speedInput.max = '10.0';
+          speedSlider.max = '4.0';
+          speedSlider.step = '0.25';
+          
+          // Clamp down if currently high
+          if (speedMultiplier > 10.0) {
+            speedMultiplier = 1.0;
+            speedInput.value = '1.00';
+            speedSlider.value = 1.0;
+          } else if (speedMultiplier > 4.0) {
+            speedSlider.value = 4.0;
+          }
+        }
+      }
+
+      highlightPresetButton(speedMultiplier);
       updateSpeedFilenamePreview();
-    });
+    }
+
+    btnSpeedModeConstant.addEventListener('click', () => setSpeedMode('constant'));
+    btnSpeedModeRamp.addEventListener('click', () => setSpeedMode('ramp'));
+    btnSpeedModeTimelapse.addEventListener('click', () => setSpeedMode('timelapse'));
   }
 
   // Presets buttons click listeners
@@ -965,7 +1013,10 @@ function updateSpeedFilenamePreview() {
     speedFilenameInput.value = '';
     return;
   }
-  const suffix = speedMode === 'ramp' ? '_ramp' : '';
+  let suffix = '';
+  if (speedMode === 'ramp') suffix = '_ramp';
+  if (speedMode === 'timelapse') suffix = '_timelapse';
+  
   speedFilenameInput.value = `${videoBaseName}_${speedMultiplier.toFixed(2)}x${suffix}.${videoExt}`;
 }
 

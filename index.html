@@ -284,15 +284,16 @@
                     <!-- Speed Mode Selector -->
                     <div class="form-group" style="margin-bottom: 20px;">
                       <label>Speed Mode</label>
-                      <div class="speed-mode-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px;">
+                      <div class="speed-mode-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;">
                         <button id="speed-mode-constant" class="preset-btn active">Constant Speed</button>
                         <button id="speed-mode-ramp" class="preset-btn">Speed Ramp</button>
+                        <button id="speed-mode-timelapse" class="preset-btn">Time Lapse</button>
                       </div>
                     </div>
 
                     <!-- Speed Presets Grid -->
                     <div class="speed-presets-grid-label" style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 0.05em;">Speed Presets</div>
-                    <div class="speed-presets-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <div class="speed-presets-grid" id="speed-presets-standard" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
                       <button class="preset-btn" data-speed="0.5">0.5x</button>
                       <button class="preset-btn" data-speed="0.75">0.75x</button>
                       <button class="preset-btn active" data-speed="1.0">1.0x</button>
@@ -301,6 +302,17 @@
                       <button class="preset-btn" data-speed="2.0">2.0x</button>
                       <button class="preset-btn" data-speed="3.0">3.0x</button>
                       <button class="preset-btn" data-speed="4.0">4.0x</button>
+                    </div>
+
+                    <div class="speed-presets-grid" id="speed-presets-timelapse" style="display: none; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                      <button class="preset-btn" data-speed="10.0">10x</button>
+                      <button class="preset-btn" data-speed="30.0">30x</button>
+                      <button class="preset-btn" data-speed="60.0">60x</button>
+                      <button class="preset-btn" data-speed="120.0">120x</button>
+                      <button class="preset-btn" data-speed="240.0">240x</button>
+                      <button class="preset-btn" data-speed="300.0">300x</button>
+                      <button class="preset-btn" data-speed="600.0">600x</button>
+                      <button class="preset-btn" data-speed="1000.0">1000x</button>
                     </div>
 
                     <!-- Custom Slider / Number Field -->

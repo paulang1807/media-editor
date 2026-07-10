@@ -325,29 +325,6 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
     // Ignore
   }
 
-  let filterComplex;
-  if (speedMode === 'ramp') {
-    filterComplex = getSpeedRampFilterComplex(duration, multiplier, true);
-  } else {
-    const videoFilter = `setpts=${(1 / multiplier).toFixed(6)}*PTS`;
-    const audioFilter = getAudioSpeedFilter(multiplier);
-    filterComplex = `[0:v]${videoFilter}[v];[0:a]${audioFilter}[a]`;
-  }
-
-  const argsWithAudio = [
-    '-i', inputPath,
-    '-filter_complex', filterComplex,
-    '-map', '[v]',
-    '-map', '[a]',
-    '-c:v', 'libx264',
-    '-preset', 'superfast',
-    '-crf', '20',
-    '-c:a', 'aac',
-    '-b:a', '192k',
-    '-y',
-    outputPath
-  ];
-
   // Send progress notice
   mainWindow.webContents.send('split-progress', {
     index: 0,
@@ -357,6 +334,54 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
   });
 
   try {
+    if (speedMode === 'timelapse') {
+      const filterVideoOnly = `[0:v]setpts=${(1 / multiplier).toFixed(6)}*PTS[v]`;
+      const argsTimelapse = [
+        '-i', inputPath,
+        '-filter_complex', filterVideoOnly,
+        '-map', '[v]',
+        '-an',
+        '-r', '30',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-crf', '20',
+        '-y',
+        outputPath
+      ];
+      await runFFmpegCommand(argsTimelapse);
+      
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'done'
+      });
+      return { success: true, message: 'Time Lapse completed successfully!' };
+    }
+
+    let filterComplex;
+    if (speedMode === 'ramp') {
+      filterComplex = getSpeedRampFilterComplex(duration, multiplier, true);
+    } else {
+      const videoFilter = `setpts=${(1 / multiplier).toFixed(6)}*PTS`;
+      const audioFilter = getAudioSpeedFilter(multiplier);
+      filterComplex = `[0:v]${videoFilter}[v];[0:a]${audioFilter}[a]`;
+    }
+
+    const argsWithAudio = [
+      '-i', inputPath,
+      '-filter_complex', filterComplex,
+      '-map', '[v]',
+      '-map', '[a]',
+      '-c:v', 'libx264',
+      '-preset', 'superfast',
+      '-crf', '20',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-y',
+      outputPath
+    ];
+
     await runFFmpegCommand(argsWithAudio);
     
     mainWindow.webContents.send('split-progress', {
