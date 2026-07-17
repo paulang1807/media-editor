@@ -38,7 +38,7 @@ try {
 // Register custom protocol 'media' to allow loading local files in <video> player
 // before the app is ready.
 protocol.registerSchemesAsPrivileged([
-  { scheme: 'media', privileges: { bypassCSP: true, stream: true, supportFetchAPI: true } }
+  { scheme: 'media', privileges: { bypassCSP: true, stream: true, supportFetchAPI: true, corsEnabled: true, standard: true } }
 ]);
 
 let mainWindow;
@@ -87,7 +87,15 @@ app.whenReady().then(() => {
 
     try {
       const fileUrl = pathToFileURL(filePath).toString();
-      return net.fetch(fileUrl);
+      return net.fetch(fileUrl).then(response => {
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set('Access-Control-Allow-Origin', '*');
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders
+        });
+      });
     } catch (error) {
       console.error('Failed to serve media:', error);
       return new Response('Media file not found', { status: 404 });

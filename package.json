@@ -7,7 +7,8 @@
     "start": "electron .",
     "dev": "electron .",
     "package": "electron-builder --mac dir",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "mkdir -p libs models && esbuild node_modules/@imgly/background-removal/dist/index.js --bundle --format=iife --global-name=imglyRemoveBackground --outfile=libs/imgly.js && cp -R node_modules/@imgly/background-removal/dist/* models/"
   },
   "keywords": [
     "electron",
@@ -21,9 +22,11 @@
   "devDependencies": {
     "electron": "^30.0.9",
     "electron-builder": "^24.13.3",
+    "esbuild": "^0.28.1",
     "vitest": "^1.6.0"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "ffmpeg-static": "^5.2.0"
   },
   "build": {
@@ -41,7 +44,8 @@
       "!dist/**/*",
       "!.git/**/*",
       "!.vitest/**/*",
-      "!helpers.test.js"
+      "!helpers.test.js",
+      "models/**/*"
     ]
   }
 }

@@ -39,6 +39,10 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
 ### 🖼️ Image Editor Section
 A fully featured client-side canvas image editor:
 *   **Drag & Drop Import**: Import images (`.png`, `.jpg`, `.jpeg`, `.webp`, `.gif`, `.bmp`) by dragging or browsing files.
+*   **AI Background Removal**:
+    *   One-click, fully offline background removal utilizing an embedded AI model.
+    *   No cloud APIs or internet connection required; processed securely on your device using WebAssembly and Web Workers.
+    *   Automatically preserves and exports the image with a transparent background in `.png` format.
 *   **Precision Rotation & Mirroring**:
     *   Rotate images interactively using a visual circular rotation handle.
     *   Fine-tune using a slider or entering precise degrees (`-360°` to `360°`).
@@ -174,7 +178,8 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 2.  Drag and drop an image or click **Browse Image** to load.
 3.  **Rotate / Flip**: Use the top visual handle to rotate by dragging, adjust the slider, or click preset rotation/mirroring buttons.
 4.  **Crop**: Check **Enable Cropping Area**. Drag the visual frame boundaries or corner knobs, or enter precise coordinates in the sidebar. Select aspect ratio presets to lock dimensions.
-5.  **Export**: Select the desired output format (PNG, JPEG, WebP) from the dropdown selector (which automatically synchronizes the extension in the filename field, and vice versa), verify/modify the export file name, click **Export Image**, and choose a destination folder.
+5.  **Remove Background**: Select the **Background** tab in the sidebar. Click the **Remove Background ✨** button. The application will initialize the bundled AI model offline and automatically remove the background.
+6.  **Export**: Select the desired output format (PNG, JPEG, WebP) from the dropdown selector (which automatically synchronizes the extension in the filename field, and vice versa), verify/modify the export file name, click **Export Image**, and choose a destination folder.
 
 ![Image Editor UI Mockup](./image_editor_ui_mockup.png)
 

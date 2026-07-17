@@ -120,10 +120,13 @@ const exportTabAlwaysPrompt = document.getElementById('export-tab-always-prompt'
 // Image Sidebar Tabs & Panels
 const imageTabEdit = document.getElementById('image-tab-edit');
 const imageTabEnhance = document.getElementById('image-tab-enhance');
+const imageTabBackground = document.getElementById('image-tab-background');
 const imageTabExport = document.getElementById('image-tab-export');
 const imagePanelEdit = document.getElementById('image-panel-edit');
 const imagePanelEnhance = document.getElementById('image-panel-enhance');
+const imagePanelBackground = document.getElementById('image-panel-background');
 const imagePanelExport = document.getElementById('image-panel-export');
+const imageRemoveBgBtn = document.getElementById('image-remove-bg-btn');
 
 // Reverse Changer Elements
 const reverseAudioToggle = document.getElementById('reverse-audio-toggle');
@@ -776,38 +779,24 @@ function setupTabEvents() {
 
 // Image Editor Tab Toggling Logic
 function setupImageTabEvents() {
-  if (imageTabEdit && imagePanelEdit) {
-    imageTabEdit.addEventListener('click', () => {
-      imageTabEdit.classList.add('active');
-      imageTabEnhance.classList.remove('active');
-      imageTabExport.classList.remove('active');
-      imagePanelEdit.classList.add('active');
-      imagePanelEnhance.classList.remove('active');
-      imagePanelExport.classList.remove('active');
-    });
-  }
+  const tabs = [
+    { tab: imageTabEdit, panel: imagePanelEdit },
+    { tab: imageTabEnhance, panel: imagePanelEnhance },
+    { tab: imageTabBackground, panel: imagePanelBackground },
+    { tab: imageTabExport, panel: imagePanelExport }
+  ];
 
-  if (imageTabEnhance && imagePanelEnhance) {
-    imageTabEnhance.addEventListener('click', () => {
-      imageTabEnhance.classList.add('active');
-      imageTabEdit.classList.remove('active');
-      imageTabExport.classList.remove('active');
-      imagePanelEnhance.classList.add('active');
-      imagePanelEdit.classList.remove('active');
-      imagePanelExport.classList.remove('active');
+  tabs.forEach(({ tab, panel }) => {
+    if (!tab) return;
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => {
+        if(t.tab) t.tab.classList.remove('active');
+        if(t.panel) t.panel.classList.remove('active');
+      });
+      tab.classList.add('active');
+      if (panel) panel.classList.add('active');
     });
-  }
-
-  if (imageTabExport && imagePanelExport) {
-    imageTabExport.addEventListener('click', () => {
-      imageTabExport.classList.add('active');
-      imageTabEdit.classList.remove('active');
-      imageTabEnhance.classList.remove('active');
-      imagePanelExport.classList.add('active');
-      imagePanelEdit.classList.remove('active');
-      imagePanelEnhance.classList.remove('active');
-    });
-  }
+  });
 }
 
 // 7. Speed Changer Form Logic & Export
@@ -3264,4 +3253,87 @@ function setupImageEditor() {
       drawImage();
     }
   });
+
+  // Background Removal Logic
+  if (imageRemoveBgBtn) {
+    imageRemoveBgBtn.addEventListener('click', async () => {
+      if (!imageObj || !imageObj.src) {
+        alert('Please load an image first.');
+        return;
+      }
+
+      // Show Progress Overlay
+      progressOverlay.style.display = 'flex';
+      progressProgressBar.style.width = '0%';
+      progressPercentText.textContent = '0%';
+      progressStatusText.textContent = 'Initializing AI Model...';
+
+      // Disable button
+      imageRemoveBgBtn.disabled = true;
+      imageRemoveBgBtn.textContent = 'Processing...';
+
+      try {
+        // Create config with local public path for bundled models
+        // Using the media:// protocol to allow web workers to fetch local files
+        const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+        const publicPath = `media://${basePath}models/`;
+        
+        const config = {
+          publicPath: publicPath,
+          progress: (key, current, total) => {
+            const percent = total > 0 ? (current / total) * 100 : 0;
+            progressStatusText.textContent = `Downloading ${key}...`;
+            progressProgressBar.style.width = `${percent}%`;
+            progressPercentText.textContent = `${Math.round(percent)}%`;
+          }
+        };
+
+        progressStatusText.textContent = 'Processing image... (This may take a moment)';
+        
+        // Perform background removal using imglyRemoveBackground
+        // Note: imglyRemoveBackground is loaded from the UMD script
+        const removeBgFn = typeof imglyRemoveBackground === 'function' ? imglyRemoveBackground : (imglyRemoveBackground.default || imglyRemoveBackground.removeBackground);
+        const resultBlob = await removeBgFn(imageObj.src, config);
+
+        // Convert result blob to object URL
+        const newImageUrl = URL.createObjectURL(resultBlob);
+        
+        // Update the current image object
+        const newImg = new Image();
+        newImg.onload = () => {
+          imageObj = newImg;
+          // Keep the same imageName but update extension to png since it's a transparent image now
+          imageExt = 'png';
+          imageName = replaceExtension(imageName, 'png');
+          document.getElementById('loaded-image-name').textContent = imageName;
+          
+          // Update size (approximate using blob size)
+          imageSize = resultBlob.size;
+          const sizeKB = (imageSize / 1024).toFixed(1);
+          document.getElementById('loaded-image-size').textContent = `${sizeKB} KB`;
+          
+          // Redraw canvas
+          drawImage();
+          
+          // Reset progress and overlay
+          progressOverlay.style.display = 'none';
+          imageRemoveBgBtn.disabled = false;
+          imageRemoveBgBtn.innerHTML = 'Remove Background <span class="btn-icon">✨</span>';
+        };
+        newImg.onerror = () => {
+          throw new Error('Failed to load processed image.');
+        };
+        newImg.src = newImageUrl;
+        
+      } catch (error) {
+        console.error('Background removal failed:', error);
+        alert(`Background removal failed: ${error.message}`);
+        progressOverlay.style.display = 'none';
+        imageRemoveBgBtn.disabled = false;
+        imageRemoveBgBtn.innerHTML = 'Remove Background <span class="btn-icon">✨</span>';
+      }
+    });
+  }
 }
+
+

@@ -600,6 +600,15 @@
                 <span class="nav-label">Enhance</span>
               </button>
               
+              <button id="image-tab-background" class="nav-item" title="Background Removal">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v20"></path>
+                  <path d="M2 12h20"></path>
+                  <circle cx="12" cy="12" r="5"></circle>
+                </svg>
+                <span class="nav-label">Background</span>
+              </button>
+              
               <button id="image-tab-export" class="nav-item" title="Export & Save">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -855,7 +864,20 @@
               </div>
               </div>
 
-              <!-- Image Tool Panel 3: Export Settings -->
+              <!-- Image Tool Panel 3: Background Removal -->
+              <div id="image-panel-background" class="tool-panel">
+                <div class="card sidebar-card export-card">
+                  <div class="sidebar-header">
+                    <h3>Background Edits</h3>
+                  </div>
+                  <div class="card-body">
+                    <p class="help-text" style="margin-bottom: 15px;">Use AI to automatically remove the background from this image. This process happens locally on your device for maximum privacy.</p>
+                    <button id="image-remove-bg-btn" class="btn btn-primary btn-lg btn-block">Remove Background <span class="btn-icon">✨</span></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Image Tool Panel 4: Export Settings -->
               <div id="image-panel-export" class="tool-panel">
                 <div class="card sidebar-card export-card">
                   <div class="sidebar-header">
@@ -997,6 +1019,7 @@
   </div>
 
   <!-- Scripts -->
+  <script src="libs/imgly.js"></script>
   <script src="helpers.js"></script>
   <script src="renderer.js"></script>
 </body>

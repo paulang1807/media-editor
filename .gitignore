@@ -58,3 +58,7 @@ coverage/
 .env.test.local
 .env.production.local
 .env.*.local
+
+# Generated AI assets
+libs/
+models/
