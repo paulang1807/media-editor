@@ -793,6 +793,66 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
     }
   }
 });
+// IPC Handler: Video Audio Removal (Mute) execution
+ipcMain.handle('mute-video', async (event, inputPath, outputPath) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  const args = [
+    '-i', inputPath,
+    '-c:v', 'copy',
+    '-an',
+    '-y',
+    outputPath
+  ];
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  try {
+    await runFFmpegCommand(args);
+    
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Audio removal completed successfully!' };
+  } catch (error) {
+    console.error('Audio removal failed:', error);
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'error',
+      error: error.message
+    });
+    return { success: false, message: `Failed to remove audio: ${error.message}` };
+  }
+});
 
 /**
  * Runs a spawned FFmpeg process.
@@ -800,9 +860,16 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
  * @returns {Promise<void>}
  */
 function runFFmpegCommand(args) {
+  // Always prevent ffmpeg from waiting for standard input
+  const finalArgs = ['-nostdin', ...args];
   return new Promise((resolve, reject) => {
-    const process = spawn(ffmpegPath, args);
+    const process = spawn(ffmpegPath, finalArgs);
     let stderr = '';
+    let stdout = '';
+
+    process.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
 
     process.stderr.on('data', (data) => {
       stderr += data.toString();

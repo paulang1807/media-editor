@@ -32,6 +32,9 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
         *   *Solid Color Block (Blackout)*: Covers the target region with a solid black rectangle using the `drawbox` filter.
         *   *Pixel Interpolation (Delogo)*: Blends/interpolates the selected region using the surrounding frame pixels via FFmpeg's `delogo` filter.
     *   *Manual Dimension Inputs*: Fine-tune removal coordinates precisely in the sidebar.
+*   **Video Mute (Audio Removal) Tool**:
+    *   *Instant Removal*: Strips the audio stream from the video entirely in milliseconds.
+    *   *Lossless Copy*: Uses direct stream copy (`-c:v copy`) to preserve 100% of the original video quality without re-encoding.
 *   **Dual Export Modes**:
     *   *Fast/Lossless (Instant)*: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without quality loss.
     *   *Frame-Accurate (Precise)*: Re-encodes using H.264/AAC to cut video at the exact millisecond.
@@ -171,6 +174,11 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 2.  Choose the preferred **Erase Style** from the dropdown menu (**Smooth Blur (Gaussian)**, **Solid Color Block (Blackout)**, or **Pixel Interpolation (Delogo)**).
 3.  Adjust the red dashed overlay box over the logo or text overlay on the video player (or enter X, Y, Width, and Height dimensions manually in the sidebar).
 4.  Enter/check the output filename and click **Apply Erase & Export**.
+
+#### Video Audio Removal (Mute) Mode
+1.  Select the **Mute** tab in the sidebar (represented by the speaker slash icon).
+2.  Enter/check the output filename in the settings panel.
+3.  Click **Remove Audio & Export**. The process is extremely fast as it skips video re-encoding.
 
 ### 🖼️ Image Editing
 

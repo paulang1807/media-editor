@@ -147,6 +147,12 @@ const delogoStyleSelect = document.getElementById('delogo-style-select');
 const delogoFilenameInput = document.getElementById('delogo-filename-input');
 const delogoGenerateBtn = document.getElementById('delogo-generate-btn');
 
+// Mute Elements
+const tabMute = document.getElementById('tab-mute');
+const panelMute = document.getElementById('panel-mute');
+const muteFilenameInput = document.getElementById('mute-filename-input');
+const muteGenerateBtn = document.getElementById('mute-generate-btn');
+
 // Speed Changer Elements
 const speedSlider = document.getElementById('speed-slider');
 const speedInput = document.getElementById('speed-input');
@@ -315,6 +321,9 @@ function loadVideo(filePath, fileName) {
   // Reset delogo settings
   delogoNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
   updateDelogoFilenamePreview();
+
+  // Reset mute settings
+  updateMuteFilenamePreview();
 
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
@@ -745,6 +754,7 @@ function setupTabEvents() {
     { tab: tabCrop, panel: panelCrop, onActivate: () => { if (videoPath) updateCropOverlayLayout(); } },
     { tab: tabReverse, panel: panelReverse, onActivate: () => {} },
     { tab: tabDelogo, panel: panelDelogo, onActivate: () => { if (videoPath) updateDelogoOverlayLayout(); } },
+    { tab: tabMute, panel: panelMute, onActivate: () => {} },
     { tab: tabExport, panel: panelExport, onActivate: () => {} }
   ];
 
@@ -1916,6 +1926,67 @@ function setupDelogoEvents() {
   });
 }
 
+if (muteGenerateBtn) {
+  muteGenerateBtn.addEventListener('click', async () => {
+    if (!videoPath) {
+      alert('Please load a video first.');
+      return;
+    }
+
+    const outputFileName = muteFilenameInput.value.trim() || 'output-muted.mp4';
+    let outputDir = '';
+    
+    if (exportTabAlwaysPrompt.checked || !exportTabDirPath.value) {
+      outputDir = await window.electronAPI.selectOutputDirectory(exportTabDirPath.value || undefined);
+      if (!outputDir) return; // User cancelled
+    } else {
+      outputDir = exportTabDirPath.value;
+    }
+
+    // Ensure extension is mp4
+    const finalFileName = window.helpers.replaceExtension(outputFileName, 'mp4');
+    const outputPath = `${outputDir}/${finalFileName}`;
+
+    muteGenerateBtn.disabled = true;
+    muteGenerateBtn.textContent = 'Processing...';
+
+    // Show Progress Bar
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '0%';
+    progressStatusText.textContent = 'Preparing...';
+
+    try {
+      // Setup progress listener
+      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+        if (data.status === 'processing') {
+          progressStatusText.textContent = `Removing audio: ${data.name}...`;
+        } else if (data.status === 'done') {
+          progressStatusText.textContent = `Done with ${data.name}`;
+          progressProgressBar.style.width = '100%';
+        }
+      });
+
+      const result = await window.electronAPI.muteVideo(videoPath, outputPath);
+      
+      removeProgressListener();
+      muteGenerateBtn.disabled = false;
+      muteGenerateBtn.textContent = 'Remove Audio & Export';
+      progressOverlay.style.display = 'none';
+
+      if (result.success) {
+        showSuccessModal('Audio Removed Successfully!', 'The audio stream has been removed and the video is exported.');
+      } else {
+        alert(`Failed to remove audio: ${result.message}`);
+      }
+    } catch (error) {
+      muteGenerateBtn.disabled = false;
+      muteGenerateBtn.textContent = 'Remove Audio & Export';
+      progressOverlay.style.display = 'none';
+      alert(`Unexpected error: ${error.message}`);
+    }
+  });
+}
+
 function updateDelogoOverlayLayout() {
   if (!videoPath || !delogoOverlayContainer) return;
   
@@ -2038,9 +2109,19 @@ function updateDelogoFilenamePreview() {
     delogoFilenameInput.value = '';
     return;
   }
-  delogoFilenameInput.value = `${videoBaseName}_delogo.${videoExt}`;
+  delogoFilenameInput.value = `${videoBaseName}_erased.${videoExt}`;
 }
 
+function updateMuteFilenamePreview() {
+  if (!muteFilenameInput) return;
+  if (!videoBaseName) {
+    muteFilenameInput.value = '';
+    return;
+  }
+  muteFilenameInput.value = `${videoBaseName}_muted.${videoExt}`;
+}
+
+// 12. Helper Function: Check Audio Stream
 function stopReversePlayback() {
   if (!isReversing) return;
   isReversing = false;
