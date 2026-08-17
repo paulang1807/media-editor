@@ -934,39 +934,78 @@
         </div>
       </div>
 
-      <!-- Section: Audio Editor (Coming Soon) -->
+      <!-- Section: Audio Editor -->
       <div id="section-audio" class="main-section">
-        <div class="audio-soon-container">
-          <div class="card audio-soon-card">
-            <div class="audio-icon-wrapper">
-              <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 18V5l12-2v13"></path>
-                <circle cx="6" cy="18" r="3"></circle>
-                <circle cx="18" cy="16" r="3"></circle>
-              </svg>
+        <!-- Empty State: Drag & Drop Video for Audio Extraction -->
+        <div id="audio-empty-state" class="empty-state">
+          <div id="audio-drop-zone" class="drop-zone">
+            <div class="drop-content">
+              <div class="drop-icon">
+                <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+              </div>
+              <h2>Import Video for Audio Extraction</h2>
+              <p>Drag and drop a video file here, or click to browse</p>
+              <button id="audio-file-input-btn" class="btn btn-primary">Browse File</button>
+              <span class="file-types">Supports MP4, MOV, MKV, AVI, WEBM</span>
             </div>
-            <h2>Audio Editor</h2>
-            <div class="soon-badge">Coming Soon</div>
-            <p class="soon-desc">We are building a comprehensive multi-track audio workstation. Features will include waveform visualization, volume normalization, fading, split/trimming, and noise cancellation filters.</p>
+          </div>
+        </div>
+
+        <!-- Active Workspace: Audio Editor Grid -->
+        <div id="audio-editor-workspace" class="editor-workspace" style="display: none;">
+          
+          <!-- Left Vertical Navigation Bar -->
+          <div class="left-nav-bar">
+            <div class="nav-logo" title="Media Editor">
+              <img src="./icon.png" alt="Media Editor Logo" width="32" height="32" style="border-radius: 8px;">
+            </div>
             
-            <!-- Waveform Animation -->
-            <div class="waveform-animation">
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
-              <span class="bar"></span>
+            <div class="nav-items">
+              <button id="tab-extract" class="nav-item active" title="Extract Audio">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 18V5l12-2v13"></path>
+                  <circle cx="6" cy="18" r="3"></circle>
+                  <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                <span class="nav-label">Extract</span>
+              </button>
             </div>
+          </div>
+
+          <!-- Main Content Area -->
+          <div class="main-content" style="flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--bg-tertiary); border-radius: 12px; margin: 20px; overflow: hidden; padding: 40px; box-sizing: border-box;">
+            
+            <div class="card sidebar-card export-card" style="width: 100%; max-width: 500px; padding: 24px;">
+              <div class="sidebar-header" style="margin-bottom: 24px; text-align: center;">
+                <h3 style="font-size: 20px; color: var(--text-primary);">Extract Audio Settings</h3>
+              </div>
+              
+              <div class="card-body">
+                <p class="help-text" style="text-align: center; margin-bottom: 24px;">Select the format you want to extract the audio to.</p>
+
+                <div class="form-group" style="margin-bottom: 16px;">
+                  <label for="audio-export-format">Export Format</label>
+                  <select id="audio-export-format" class="select-input" style="width: 100%;">
+                    <option value="mp3">MP3 (.mp3)</option>
+                    <option value="wav">WAV (.wav)</option>
+                    <option value="aac">AAC (.aac)</option>
+                    <option value="ogg">OGG (.ogg)</option>
+                  </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 24px;">
+                  <label for="audio-export-filename">Export File Name</label>
+                  <input type="text" id="audio-export-filename" class="clip-name-input" placeholder="Extracted Audio" style="width: 100%;">
+                </div>
+
+                <button id="audio-extract-btn" class="btn btn-primary btn-lg btn-block" style="width: 100%;">Extract Audio <span class="btn-icon">↗</span></button>
+              </div>
+            </div>
+            
           </div>
         </div>
       </div>

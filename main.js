@@ -854,6 +854,89 @@ ipcMain.handle('mute-video', async (event, inputPath, outputPath) => {
   }
 });
 
+ipcMain.handle('extract-audio', async (event, inputPath, outputPath, format) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  let audioArgs = [];
+  switch (format) {
+    case 'mp3':
+      audioArgs = ['-vn', '-acodec', 'libmp3lame', '-q:a', '2'];
+      break;
+    case 'wav':
+      audioArgs = ['-vn', '-acodec', 'pcm_s16le'];
+      break;
+    case 'aac':
+      audioArgs = ['-vn', '-acodec', 'aac', '-b:a', '192k'];
+      break;
+    case 'ogg':
+      audioArgs = ['-vn', '-acodec', 'libvorbis', '-q:a', '4'];
+      break;
+    default:
+      return { success: false, message: 'Unsupported audio format.' };
+  }
+
+  const args = [
+    '-i', inputPath,
+    ...audioArgs,
+    '-y',
+    outputPath
+  ];
+
+  // Send progress notice
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'processing'
+    });
+  }
+
+  try {
+    await runFFmpegCommand(args);
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'done'
+      });
+    }
+    return { success: true, message: 'Audio extraction completed successfully!' };
+  } catch (error) {
+    console.error('Audio extraction failed:', error);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+    }
+    return { success: false, message: `Failed to extract audio: ${error.message}` };
+  }
+});
+
 /**
  * Runs a spawned FFmpeg process.
  * @param {Array<string>} args - Command-line arguments for FFmpeg.

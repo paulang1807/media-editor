@@ -81,6 +81,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   muteVideo: (inputPath, outputPath) =>
     ipcRenderer.invoke('mute-video', inputPath, outputPath),
 
+  /**
+   * Triggers the audio extraction process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the extracted audio.
+   * @param {string} format - The audio format (mp3, wav, aac, ogg).
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  extractAudio: (inputPath, outputPath, format) =>
+    ipcRenderer.invoke('extract-audio', inputPath, outputPath, format),
+
 
   /**
    * Opens the given directory in the macOS Finder.

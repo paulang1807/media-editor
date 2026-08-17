@@ -69,8 +69,10 @@ A fully featured client-side canvas image editor:
 *   **Pixel-Perfect Export**: Exports the rotated, cropped, enhanced, and scaled region directly onto a clean canvas buffer. Supports saving/exporting to common formats including **PNG**, **JPEG/JPG**, and **WebP**.
 
 ### 🎵 Audio Editor Section
-*   A placeholder tab showing a premium **"Coming Soon"** splash screen.
-*   Includes a beautiful glowing CSS-animated bouncing waveform demonstrating active channel visualization.
+*   **Audio Extraction**: 
+    *   Extract audio tracks from any supported video file (`.mp4`, `.mov`, `.mkv`, etc.).
+    *   Export directly to high-quality audio formats: **MP3** (`libmp3lame`), **WAV** (`pcm_s16le`), **AAC**, and **OGG** (`libvorbis`).
+    *   Simple drag-and-drop workflow with real-time extraction progress updates.
 
 ---
 

@@ -222,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupDelogoEvents();
   setupSettingsEvents();
   setupImageEditor();
+  setupAudioEditor();
 });
 
 // 1. File Import Handlers
@@ -3417,4 +3418,116 @@ function setupImageEditor() {
   }
 }
 
+function setupAudioEditor() {
+  const audioEmptyState = document.getElementById('audio-empty-state');
+  const audioDropZone = document.getElementById('audio-drop-zone');
+  const audioFileInputBtn = document.getElementById('audio-file-input-btn');
+  const audioEditorWorkspace = document.getElementById('audio-editor-workspace');
+  
+  const audioExportFormat = document.getElementById('audio-export-format');
+  const audioExportFilename = document.getElementById('audio-export-filename');
+  const audioExtractBtn = document.getElementById('audio-extract-btn');
 
+  let currentVideoFile = null;
+
+  function loadAudioSourceVideo(filePath, fileName) {
+    currentVideoFile = { filePath, fileName };
+    audioEmptyState.style.display = 'none';
+    audioEditorWorkspace.style.display = 'flex';
+    
+    // Default filename based on original
+    const baseName = fileName.replace(/\.[^/.]+$/, "");
+    audioExportFilename.value = `${baseName}_audio`;
+  }
+
+  // Browse File Button
+  audioFileInputBtn.addEventListener('click', async () => {
+    try {
+      const fileData = await window.electronAPI.selectVideoFile();
+      if (fileData) {
+        loadAudioSourceVideo(fileData.filePath, fileData.name);
+      }
+    } catch (err) {
+      console.error('Renderer: selectVideoFile failed with error:', err);
+    }
+  });
+
+  // Drag and Drop
+  audioDropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    audioDropZone.classList.add('dragover');
+  });
+
+  audioDropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    audioDropZone.classList.remove('dragover');
+  });
+
+  audioDropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    audioDropZone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      const validTypes = ['video/mp4', 'video/quicktime', 'video/x-matroska', 'video/x-msvideo', 'video/webm'];
+      
+      if (validTypes.includes(file.type) || file.name.match(/\.(mp4|mov|mkv|avi|webm)$/i)) {
+        loadAudioSourceVideo(file.path, file.name);
+      } else {
+        alert('Please drop a valid video file (MP4, MOV, MKV, AVI, WEBM).');
+      }
+    }
+  });
+
+  // Extract Button
+  audioExtractBtn.addEventListener('click', async () => {
+    if (!currentVideoFile) return;
+
+    const format = audioExportFormat.value;
+    const filename = audioExportFilename.value.trim();
+
+    if (!filename) {
+      alert('Please enter an export filename.');
+      return;
+    }
+
+    const outputDir = await window.electronAPI.selectOutputDirectory();
+    if (!outputDir) return; // User cancelled
+
+    const outputPath = `${outputDir}/${filename}.${format}`;
+
+    audioExtractBtn.disabled = true;
+    audioExtractBtn.innerHTML = 'Extracting...';
+    
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '0%';
+    progressStatusText.textContent = `Extracting audio...`;
+
+    try {
+      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+        if (data.status === 'processing') {
+          progressStatusText.textContent = `Extracting audio: ${data.name}...`;
+        } else if (data.status === 'done') {
+          progressStatusText.textContent = `Done with ${data.name}`;
+          progressProgressBar.style.width = '100%';
+        }
+      });
+
+      const result = await window.electronAPI.extractAudio(currentVideoFile.filePath, outputPath, format);
+      
+      removeProgressListener();
+      progressOverlay.style.display = 'none';
+
+      if (result.success) {
+        showSuccessModal('Audio Extracted Successfully!', `The audio has been extracted to ${format.toUpperCase()} format.`);
+      } else {
+        alert(`Failed to extract audio: ${result.message}`);
+      }
+    } catch (err) {
+      progressOverlay.style.display = 'none';
+      alert(`Error extracting audio: ${err.message}`);
+    } finally {
+      audioExtractBtn.disabled = false;
+      audioExtractBtn.innerHTML = 'Extract Audio <span class="btn-icon">↗</span>';
+    }
+  });
+}
