@@ -46,6 +46,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('reverse-video', inputPath, outputPath, reverseAudio),
 
   /**
+   * Triggers the video rotation process in the main process.
+   * @param {string} inputPath - Original video file path.
+   * @param {string} outputPath - Path to save the modified video.
+   * @param {string} rotationType - "90cw", "90ccw", or "180"
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  rotateVideo: (inputPath, outputPath, rotationType) =>
+    ipcRenderer.invoke('rotate-video', inputPath, outputPath, rotationType),
+
+  /**
    * Triggers the video cropping process in the main process.
    * @param {string} inputPath - Original video file path.
    * @param {string} outputPath - Path to save the modified video.

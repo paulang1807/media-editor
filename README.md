@@ -25,6 +25,9 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
     *   *Reverse Playback Preview*: Preview videos backwards in real time using the reverse play control button.
     *   *Reversed or Muted Audio*: Reverses audio streams in synchronization or mutes audio if desired.
     *   *Auto-fallback*: Seamlessly bypasses audio reversing if no audio stream is present in the source file.
+*   **Video Rotate Tool**:
+    *   *Directional Rotation*: Rotate videos by 90° Clockwise, 90° Counter-Clockwise, or 180°.
+    *   *Auto-fallback*: Automatically bypasses audio copying if no audio stream is present in the source file.
 *   **Video Logo & Text Eraser Tool**:
     *   *Draggable Erase Region Overlay*: Draw a red, resizable boundary overlay box over any logo, watermark, or text overlay on the video frame.
     *   *Multiple Erase Styles*:
@@ -170,6 +173,11 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 2.  Choose whether to reverse the audio track or mute it using the **Reverse Audio** checkbox.
 3.  Use the **Play Reverse** button in the player controls row to preview the reversed video.
 4.  Enter/check the output filename and click **Reverse & Export**.
+
+#### Video Rotate Mode
+1.  Select the **Rotate** tab in the sidebar.
+2.  Choose the rotation direction (90° Clockwise, 90° Counter-Clockwise, or 180°).
+3.  Enter/check the output filename and click **Rotate & Export**.
 
 #### Video Logo & Text Eraser Mode
 1.  Select the **Erase** tab in the sidebar (represented by the eraser icon).

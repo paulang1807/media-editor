@@ -578,6 +578,126 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
   }
 });
 
+// IPC Handler: Video rotation execution
+ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType) => {
+  if (!fs.existsSync(inputPath)) {
+    return { success: false, message: 'Input video file does not exist.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore
+  }
+
+  let rotateFilter = '';
+  if (rotationType === '90cw') {
+    rotateFilter = 'transpose=1';
+  } else if (rotationType === '90ccw') {
+    rotateFilter = 'transpose=2';
+  } else if (rotationType === '180') {
+    rotateFilter = 'transpose=2,transpose=2';
+  } else {
+    return { success: false, message: 'Invalid rotation type.' };
+  }
+
+  const argsWithAudio = [
+    '-i', inputPath,
+    '-vf', rotateFilter,
+    '-c:v', 'libx264',
+    '-preset', 'superfast',
+    '-crf', '20',
+    '-c:a', 'copy',
+    '-y',
+    outputPath
+  ];
+
+  // Send progress notice
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  try {
+    await runFFmpegCommand(argsWithAudio);
+    
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Rotation completed successfully!' };
+  } catch (error) {
+    const errorStr = error.message.toLowerCase();
+    
+    // Check if the error is due to missing audio stream
+    if (
+      errorStr.includes('matches no streams') || 
+      errorStr.includes('no audio') || 
+      errorStr.includes('invalid stream') ||
+      errorStr.includes('specifier \':a\'') ||
+      errorStr.includes('stream copy')
+    ) {
+      console.log('Video does not have audio stream. Retrying with video-only rotation...');
+      
+      const argsVideoOnly = [
+        '-i', inputPath,
+        '-vf', rotateFilter,
+        '-an',
+        '-c:v', 'libx264',
+        '-preset', 'superfast',
+        '-crf', '20',
+        '-y',
+        outputPath
+      ];
+
+      try {
+        await runFFmpegCommand(argsVideoOnly);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'done'
+        });
+        return { success: true, message: 'Rotation (video-only) completed successfully!' };
+      } catch (videoError) {
+        console.error('Video-only rotation failed:', videoError);
+        mainWindow.webContents.send('split-progress', {
+          index: 0,
+          total: 1,
+          name: path.basename(outputPath),
+          status: 'error',
+          error: videoError.message
+        });
+        return { success: false, message: `Failed to rotate video: ${videoError.message}` };
+      }
+    } else {
+      console.error('Rotation failed:', error);
+      mainWindow.webContents.send('split-progress', {
+        index: 0,
+        total: 1,
+        name: path.basename(outputPath),
+        status: 'error',
+        error: error.message
+      });
+      return { success: false, message: `Failed to rotate video: ${error.message}` };
+    }
+  }
+});
+
 // IPC Handler: Video reversing execution
 ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudio) => {
   if (!fs.existsSync(inputPath)) {

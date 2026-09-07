@@ -103,10 +103,12 @@ const generateBtn = document.getElementById('generate-btn');
 const tabSplit = document.getElementById('tab-split');
 const tabSpeed = document.getElementById('tab-speed');
 const tabCrop = document.getElementById('tab-crop');
+const tabRotate = document.getElementById('tab-rotate');
 const tabReverse = document.getElementById('tab-reverse');
 const panelSplit = document.getElementById('panel-split');
 const panelSpeed = document.getElementById('panel-speed');
 const panelCrop = document.getElementById('panel-crop');
+const panelRotate = document.getElementById('panel-rotate');
 const panelReverse = document.getElementById('panel-reverse');
 
 // Global Export Elements
@@ -133,6 +135,11 @@ const reverseAudioToggle = document.getElementById('reverse-audio-toggle');
 const reverseFilenameInput = document.getElementById('reverse-filename-input');
 const reverseGenerateBtn = document.getElementById('reverse-generate-btn');
 const playReverseBtn = document.getElementById('play-reverse-btn');
+
+// Rotate Elements
+const rotateTypeSelect = document.getElementById('rotate-type-select');
+const rotateFilenameInput = document.getElementById('rotate-filename-input');
+const rotateGenerateBtn = document.getElementById('rotate-generate-btn');
 
 // Delogo Elements
 const tabDelogo = document.getElementById('tab-delogo');
@@ -219,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSpeedChangerEvents();
   setupCropperEvents();
   setupReverseEvents();
+  setupRotateEvents();
   setupDelogoEvents();
   setupSettingsEvents();
   setupImageEditor();
@@ -318,6 +326,9 @@ function loadVideo(filePath, fileName) {
   // Reset reversing settings
   stopReversePlayback();
   updateReverseFilenamePreview();
+
+  // Reset rotating settings
+  updateRotateFilenamePreview();
 
   // Reset delogo settings
   delogoNormalized = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 };
@@ -753,6 +764,7 @@ function setupTabEvents() {
     { tab: tabSplit, panel: panelSplit, onActivate: () => {} },
     { tab: tabSpeed, panel: panelSpeed, onActivate: () => {} },
     { tab: tabCrop, panel: panelCrop, onActivate: () => { if (videoPath) updateCropOverlayLayout(); } },
+    { tab: tabRotate, panel: panelRotate, onActivate: () => {} },
     { tab: tabReverse, panel: panelReverse, onActivate: () => {} },
     { tab: tabDelogo, panel: panelDelogo, onActivate: () => { if (videoPath) updateDelogoOverlayLayout(); } },
     { tab: tabMute, panel: panelMute, onActivate: () => {} },
@@ -1645,6 +1657,96 @@ function updateReverseFilenamePreview() {
     return;
   }
   reverseFilenameInput.value = `${videoBaseName}_reversed.${videoExt}`;
+}
+
+// Rotate Logic & Export
+function setupRotateEvents() {
+  if (rotateTypeSelect) {
+    rotateTypeSelect.addEventListener('change', updateRotateFilenamePreview);
+  }
+
+  if (rotateGenerateBtn) {
+    rotateGenerateBtn.addEventListener('click', async () => {
+      if (!videoPath) {
+        alert('Please load a video first.');
+        return;
+      }
+
+      const outputName = rotateFilenameInput.value.trim();
+      if (!outputName) {
+        alert('Please enter an output file name.');
+        return;
+      }
+
+      const rotationType = rotateTypeSelect.value;
+
+      // Prompt user for directory
+      const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+      const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+      if (!dir) {
+        return;
+      }
+      outputDir = dir;
+
+      const outputPath = `${dir}/${outputName}`;
+
+      // UI state
+      rotateGenerateBtn.disabled = true;
+      rotateGenerateBtn.textContent = 'Processing...';
+
+      progressOverlay.style.display = 'flex';
+      progressProgressBar.style.width = '0%';
+      progressPercentText.textContent = '0%';
+      progressStatusText.textContent = 'Preparing video rotation...';
+
+      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+        if (data.status === 'processing') {
+          progressStatusText.textContent = `Applying rotation to "${data.name}"...`;
+          progressProgressBar.style.width = '50%';
+          progressPercentText.textContent = '50%';
+        } else if (data.status === 'done') {
+          progressStatusText.textContent = 'Finished rotation!';
+          progressProgressBar.style.width = '100%';
+          progressPercentText.textContent = '100%';
+        } else if (data.status === 'error') {
+          progressStatusText.textContent = `Error: ${data.error}`;
+        }
+      });
+
+      try {
+        const result = await window.electronAPI.rotateVideo(videoPath, outputPath, rotationType);
+        removeProgressListener();
+        rotateGenerateBtn.disabled = false;
+        rotateGenerateBtn.textContent = 'Rotate & Export';
+        progressOverlay.style.display = 'none';
+
+        if (result.success) {
+          showSuccessModal('Rotation Complete!', 'The video has been successfully rotated and exported.');
+        } else {
+          alert(`Failed to rotate video: ${result.message}`);
+        }
+      } catch (error) {
+        removeProgressListener();
+        rotateGenerateBtn.disabled = false;
+        rotateGenerateBtn.textContent = 'Rotate & Export';
+        progressOverlay.style.display = 'none';
+        alert(`Unexpected error: ${error.message}`);
+      }
+    });
+  }
+}
+
+function updateRotateFilenamePreview() {
+  if (!rotateFilenameInput) return;
+  if (!videoBaseName) {
+    rotateFilenameInput.value = '';
+    return;
+  }
+  let suffix = '_rotated';
+  if (rotateTypeSelect) {
+    suffix = `_rotated_${rotateTypeSelect.value}`;
+  }
+  rotateFilenameInput.value = `${videoBaseName}${suffix}.${videoExt}`;
 }
 
 function startReversePlayback() {
