@@ -160,6 +160,16 @@ const panelMute = document.getElementById('panel-mute');
 const muteFilenameInput = document.getElementById('mute-filename-input');
 const muteGenerateBtn = document.getElementById('mute-generate-btn');
 
+// Combine Elements
+const tabCombine = document.getElementById('tab-combine');
+const panelCombine = document.getElementById('panel-combine');
+const combineList = document.getElementById('combine-list');
+const addCombineClipBtn = document.getElementById('add-combine-clip-btn');
+const combineAccuracySelect = document.getElementById('combine-accuracy');
+const combineFilenameInput = document.getElementById('combine-filename-input');
+const combineGenerateBtn = document.getElementById('combine-generate-btn');
+let combineClips = [];
+
 // Speed Changer Elements
 const speedSlider = document.getElementById('speed-slider');
 const speedInput = document.getElementById('speed-input');
@@ -228,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupReverseEvents();
   setupRotateEvents();
   setupDelogoEvents();
+  setupCombineEvents();
   setupSettingsEvents();
   setupImageEditor();
   setupAudioEditor();
@@ -768,6 +779,7 @@ function setupTabEvents() {
     { tab: tabReverse, panel: panelReverse, onActivate: () => {} },
     { tab: tabDelogo, panel: panelDelogo, onActivate: () => { if (videoPath) updateDelogoOverlayLayout(); } },
     { tab: tabMute, panel: panelMute, onActivate: () => {} },
+    { tab: tabCombine, panel: panelCombine, onActivate: () => {} },
     { tab: tabExport, panel: panelExport, onActivate: () => {} }
   ];
 
@@ -944,10 +956,15 @@ function setupSpeedChangerEvents() {
       return;
     }
 
-    const outputName = speedFilenameInput.value.trim();
+    let outputName = speedFilenameInput.value.trim();
     if (!outputName) {
       alert('Please enter an output file name.');
       return;
+    }
+    if (!outputName.includes('.')) {
+      const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+      outputName = `${outputName}.${ext}`;
+      speedFilenameInput.value = outputName;
     }
 
     // Prompt user for directory (Option C)
@@ -1478,10 +1495,15 @@ async function handleCropExport() {
     return;
   }
 
-  const outputName = cropFilenameInput.value.trim();
+  let outputName = cropFilenameInput.value.trim();
   if (!outputName) {
     alert('Please enter an output file name.');
     return;
+  }
+  if (!outputName.includes('.')) {
+    const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+    outputName = `${outputName}.${ext}`;
+    cropFilenameInput.value = outputName;
   }
 
   const rect = getVideoContentRect();
@@ -1586,10 +1608,15 @@ function setupReverseEvents() {
         return;
       }
 
-      const outputName = reverseFilenameInput.value.trim();
+      let outputName = reverseFilenameInput.value.trim();
       if (!outputName) {
         alert('Please enter an output file name.');
         return;
+      }
+      if (!outputName.includes('.')) {
+        const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+        outputName = `${outputName}.${ext}`;
+        reverseFilenameInput.value = outputName;
       }
 
       const reverseAudio = reverseAudioToggle.checked;
@@ -1672,10 +1699,15 @@ function setupRotateEvents() {
         return;
       }
 
-      const outputName = rotateFilenameInput.value.trim();
+      let outputName = rotateFilenameInput.value.trim();
       if (!outputName) {
         alert('Please enter an output file name.');
         return;
+      }
+      if (!outputName.includes('.')) {
+        const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+        outputName = `${outputName}.${ext}`;
+        rotateFilenameInput.value = outputName;
       }
 
       const rotationType = rotateTypeSelect.value;
@@ -1797,6 +1829,178 @@ function stopReversePlayback() {
   if (playReverseBtn) {
     playReverseBtn.classList.remove('active');
   }
+}
+
+// 8.5 Combine Multiple Clips Logic
+function setupCombineEvents() {
+  addCombineClipBtn.addEventListener('click', async () => {
+    try {
+      const selectedFiles = await window.electronAPI.selectMultipleVideoFiles();
+      if (selectedFiles && selectedFiles.length > 0) {
+        selectedFiles.forEach(file => {
+          combineClips.push(file);
+        });
+        renderCombineList();
+      }
+    } catch (err) {
+      console.error('Failed to select files for combine:', err);
+    }
+  });
+
+  combineGenerateBtn.addEventListener('click', async () => {
+    if (combineClips.length === 0) {
+      alert('Please add at least one clip to combine.');
+      return;
+    }
+
+    let outputName = combineFilenameInput.value.trim();
+    if (!outputName) {
+      alert('Please enter an output file name.');
+      return;
+    }
+    
+    // Ensure outputName has an extension
+    if (!outputName.includes('.')) {
+      const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+      outputName = `${outputName}.${ext}`;
+      combineFilenameInput.value = outputName; // Update input field
+    }
+
+    // Prompt user for output directory
+    const defaultDir = combineClips[0].filePath.substring(0, combineClips[0].filePath.lastIndexOf('/'));
+    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    if (!dir) {
+      return;
+    }
+    outputDir = dir;
+
+    const outputPath = `${dir}/${outputName}`;
+    const inputPaths = combineClips.map(c => c.filePath);
+    const accuracy = combineAccuracySelect.value;
+
+    // UI state
+    combineGenerateBtn.disabled = true;
+    combineGenerateBtn.textContent = 'Processing...';
+
+    progressOverlay.style.display = 'flex';
+    progressProgressBar.style.width = '0%';
+    progressPercentText.textContent = '0%';
+    progressStatusText.textContent = 'Combining clips...';
+
+    const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+      if (data.status === 'processing') {
+        progressStatusText.textContent = 'Combining videos...';
+        progressProgressBar.style.width = '50%';
+        progressPercentText.textContent = '50%';
+      } else if (data.status === 'done') {
+        progressProgressBar.style.width = '100%';
+        progressPercentText.textContent = '100%';
+        progressStatusText.textContent = 'Finished!';
+      } else if (data.status === 'error') {
+        progressStatusText.textContent = `Error: ${data.error}`;
+      }
+    });
+
+    try {
+      const result = await window.electronAPI.combineVideo(inputPaths, outputPath, accuracy);
+      
+      removeProgressListener();
+      combineGenerateBtn.disabled = false;
+      combineGenerateBtn.innerHTML = 'Combine & Export <span class="btn-icon">↗</span>';
+      progressOverlay.style.display = 'none';
+
+      if (result.success) {
+        showSuccessModal('Export Complete!', 'Videos have been successfully combined.');
+      } else {
+        alert(`Failed to combine videos: ${result.message}`);
+      }
+    } catch (error) {
+      removeProgressListener();
+      combineGenerateBtn.disabled = false;
+      combineGenerateBtn.innerHTML = 'Combine & Export <span class="btn-icon">↗</span>';
+      progressOverlay.style.display = 'none';
+      alert(`Unexpected error: ${error.message}`);
+    }
+  });
+}
+
+function renderCombineList() {
+  combineList.innerHTML = '';
+  if (combineClips.length === 0) {
+    combineList.innerHTML = '<li style="color: var(--text-muted); font-size: 12px; text-align: center; padding: 10px;">No clips added.</li>';
+    return;
+  }
+
+  combineClips.forEach((clip, index) => {
+    const li = document.createElement('li');
+    li.style.display = 'flex';
+    li.style.alignItems = 'center';
+    li.style.justifyContent = 'space-between';
+    li.style.padding = '8px';
+    li.style.backgroundColor = 'var(--surface-color)';
+    li.style.border = '1px solid var(--border-color)';
+    li.style.marginBottom = '6px';
+    li.style.borderRadius = '4px';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = `${index + 1}. ${clip.name}`;
+    nameSpan.style.fontSize = '12px';
+    nameSpan.style.whiteSpace = 'nowrap';
+    nameSpan.style.overflow = 'hidden';
+    nameSpan.style.textOverflow = 'ellipsis';
+    nameSpan.style.flex = '1';
+    nameSpan.style.marginRight = '8px';
+    nameSpan.title = clip.filePath;
+
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '4px';
+
+    const upBtn = document.createElement('button');
+    upBtn.innerHTML = '↑';
+    upBtn.className = 'btn btn-secondary btn-sm';
+    upBtn.style.padding = '2px 6px';
+    upBtn.title = 'Move Up';
+    upBtn.disabled = index === 0;
+    upBtn.onclick = () => {
+      const temp = combineClips[index - 1];
+      combineClips[index - 1] = combineClips[index];
+      combineClips[index] = temp;
+      renderCombineList();
+    };
+
+    const downBtn = document.createElement('button');
+    downBtn.innerHTML = '↓';
+    downBtn.className = 'btn btn-secondary btn-sm';
+    downBtn.style.padding = '2px 6px';
+    downBtn.title = 'Move Down';
+    downBtn.disabled = index === combineClips.length - 1;
+    downBtn.onclick = () => {
+      const temp = combineClips[index + 1];
+      combineClips[index + 1] = combineClips[index];
+      combineClips[index] = temp;
+      renderCombineList();
+    };
+
+    const rmBtn = document.createElement('button');
+    rmBtn.innerHTML = '✕';
+    rmBtn.className = 'btn btn-secondary btn-sm';
+    rmBtn.style.padding = '2px 6px';
+    rmBtn.style.color = '#ef4444';
+    rmBtn.title = 'Remove';
+    rmBtn.onclick = () => {
+      combineClips.splice(index, 1);
+      renderCombineList();
+    };
+
+    controls.appendChild(upBtn);
+    controls.appendChild(downBtn);
+    controls.appendChild(rmBtn);
+
+    li.appendChild(nameSpan);
+    li.appendChild(controls);
+    combineList.appendChild(li);
+  });
 }
 
 // 9. Video Delogo (Erase Overlay) Logic & Export
@@ -1948,10 +2152,15 @@ function setupDelogoEvents() {
       return;
     }
 
-    const outputName = delogoFilenameInput.value.trim();
+    let outputName = delogoFilenameInput.value.trim();
     if (!outputName) {
       alert('Please enter an output file name.');
       return;
+    }
+    if (!outputName.includes('.')) {
+      const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+      outputName = `${outputName}.${ext}`;
+      delogoFilenameInput.value = outputName;
     }
 
     const rect = getVideoContentRect();
@@ -2036,7 +2245,12 @@ if (muteGenerateBtn) {
       return;
     }
 
-    const outputFileName = muteFilenameInput.value.trim() || 'output-muted.mp4';
+    let outputFileName = muteFilenameInput.value.trim() || 'output-muted.mp4';
+    if (!outputFileName.includes('.')) {
+      const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
+      outputFileName = `${outputFileName}.${ext}`;
+      muteFilenameInput.value = outputFileName;
+    }
     let outputDir = '';
     
     if (exportTabAlwaysPrompt.checked || !exportTabDirPath.value) {
@@ -2344,7 +2558,9 @@ function updateAllVideoExtensions(newExt) {
     speedFilenameInput,
     cropFilenameInput,
     reverseFilenameInput,
-    delogoFilenameInput
+    delogoFilenameInput,
+    muteFilenameInput,
+    combineFilenameInput
   ];
   
   inputs.forEach(input => {
@@ -3293,10 +3509,15 @@ function setupImageEditor() {
       return;
     }
 
-    const filename = imageExportFilename.value.trim();
+    let filename = imageExportFilename.value.trim();
     if (!filename) {
       alert('Please enter a valid filename.');
       return;
+    }
+    if (!filename.includes('.')) {
+      const ext = imageExportFormat ? imageExportFormat.value : 'png';
+      filename = `${filename}.${ext}`;
+      imageExportFilename.value = filename;
     }
 
     // Prompt for save folder

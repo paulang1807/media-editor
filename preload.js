@@ -8,11 +8,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectVideoFile: () => ipcRenderer.invoke('select-video-file'),
 
   /**
+   * Opens native file dialog to select multiple video files.
+   * @returns {Promise<Array<{ filePath: string, name: string }> | null>}
+   */
+  selectMultipleVideoFiles: () => ipcRenderer.invoke('select-multiple-video-files'),
+
+  /**
    * Opens native directory dialog to select where to save clips.
    * @param {string} [defaultPath] - Default directory to open.
    * @returns {Promise<string | null>}
    */
   selectOutputDirectory: (defaultPath) => ipcRenderer.invoke('select-output-directory', defaultPath),
+
+  /**
+   * Triggers the combining process in the main process using FFmpeg.
+   * @param {Array<string>} inputPaths - Array of original video file paths to combine.
+   * @param {string} outputPath - Path to save the combined video.
+   * @param {string} accuracy - Combining accuracy mode ("fast" or "accurate").
+   * @returns {Promise<{ success: boolean, message: string, error?: string }>}
+   */
+  combineVideo: (inputPaths, outputPath, accuracy) => 
+    ipcRenderer.invoke('combine-video', inputPaths, outputPath, accuracy),
 
   /**
    * Triggers the splitting process in the main process using FFmpeg.

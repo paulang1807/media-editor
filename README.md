@@ -38,6 +38,10 @@ The Video Editor provides high-speed, interactive tools to manage and modify vid
 *   **Video Mute (Audio Removal) Tool**:
     *   *Instant Removal*: Strips the audio stream from the video entirely in milliseconds.
     *   *Lossless Copy*: Uses direct stream copy (`-c:v copy`) to preserve 100% of the original video quality without re-encoding.
+*   **Video Combiner Tool**:
+    *   *Merge Multiple Clips*: Combine multiple video files sequentially into a single continuous video.
+    *   *Re-orderable List*: Drag and reorder the selected clips in the sidebar before generating the final video.
+    *   *Robust Concatenation*: Uses advanced FFmpeg concatenation strategies with automatic PTS generation and synchronization to handle complex timescale offsets smoothly.
 *   **Dual Export Modes**:
     *   *Fast/Lossless (Instant)*: Employs FFmpeg's stream copy (`-c copy`) to extract segments in milliseconds without quality loss.
     *   *Frame-Accurate (Precise)*: Re-encodes using H.264/AAC to cut video at the exact millisecond.
@@ -189,6 +193,13 @@ Use the header tabs (**Video Editor**, **Image Editor**, **Audio Editor**) to na
 1.  Select the **Mute** tab in the sidebar (represented by the speaker slash icon).
 2.  Enter/check the output filename in the settings panel.
 3.  Click **Remove Audio & Export**. The process is extremely fast as it skips video re-encoding.
+
+#### Video Combiner Mode
+1.  Select the **Combine** tab in the sidebar.
+2.  Click **+ Add Clips** to select multiple video files from your computer.
+3.  Re-order the clips in the list using the **↑** and **↓** arrows, or remove them with **✕**.
+4.  Choose the combining mode (*Fast/Lossless* or *Accurate*).
+5.  Enter/check the output filename and click **Combine & Export**.
 
 ### 🖼️ Image Editing
 

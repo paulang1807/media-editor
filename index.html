@@ -149,6 +149,15 @@
 
               <div class="nav-spacer" style="flex-grow: 1;"></div>
 
+              <button id="tab-combine" class="nav-item" title="Combine Videos">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="8" height="18" rx="2" ry="2"></rect>
+                  <rect x="13" y="3" width="8" height="18" rx="2" ry="2"></rect>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <span class="nav-label">Combine</span>
+              </button>
+
               <button id="tab-export" class="nav-item" title="Global Export Settings">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -584,6 +593,40 @@
               </div>
 
               <!-- Tool Panel 6: Global Export Options -->
+              <div id="panel-combine" class="tool-panel">
+                <div class="card sidebar-card" style="margin-bottom: 20px;">
+                  <div class="sidebar-header">
+                    <h3>Combine Settings</h3>
+                  </div>
+                  <div class="card-body">
+                    <div style="margin-bottom: 12px; font-size: 13px;">Clips to Combine:</div>
+                    <ul id="combine-list" class="combine-list" style="list-style: none; padding: 0; margin: 0 0 15px 0; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1); border-radius: 4px; padding: 8px;">
+                      <!-- Populated via JS -->
+                    </ul>
+                    <button id="add-combine-clip-btn" class="btn btn-secondary btn-sm btn-block" style="margin-bottom: 20px;">+ Add Clips</button>
+                    
+                    <div class="form-group">
+                      <label for="combine-accuracy">Combining Mode</label>
+                      <select id="combine-accuracy" class="select-input" style="width: 100%;">
+                        <option value="fast">Fast/Lossless (Copy streams)</option>
+                        <option value="accurate">Accurate (Re-encode all to ensure compatibility)</option>
+                      </select>
+                      <small class="help-text" style="display: block; margin-top: 8px;">Fast mode requires clips to have identical codecs and resolution. Use Accurate if they differ.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                      <label>Export File Name</label>
+                      <input type="text" id="combine-filename-input" class="clip-name-input" placeholder="Output combined video file name">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card sidebar-card">
+                  <button id="combine-generate-btn" class="btn btn-primary btn-lg btn-block">Combine & Export <span class="btn-icon">↗</span></button>
+                </div>
+              </div>
+
+              <!-- Tool Panel 7: Global Export Options -->
               <div id="panel-export" class="tool-panel">
                 <div class="card sidebar-card">
                   <div class="sidebar-header">

@@ -147,6 +147,37 @@ ipcMain.handle('select-video-file', async () => {
   }
 });
 
+// IPC Handler: File selector for multiple video files
+ipcMain.handle('select-multiple-video-files', async () => {
+  console.log('Main Process: select-multiple-video-files IPC handler triggered');
+  if (!mainWindow) {
+    console.error('Main Process: select-multiple-video-files failed because mainWindow is null');
+    return null;
+  }
+
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Video Files to Combine',
+      filters: [
+        { name: 'Video Files', extensions: ['mp4', 'mkv', 'mov', 'avi', 'webm', 'm4v'] }
+      ],
+      properties: ['openFile', 'multiSelections']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+
+    return result.filePaths.map(filePath => ({
+      filePath,
+      name: path.basename(filePath)
+    }));
+  } catch (err) {
+    console.error('Main Process: select-multiple-video-files dialog error:', err);
+    return null;
+  }
+});
+
 // IPC Handler: File selector for image file
 ipcMain.handle('select-image-file', async () => {
   console.log('Main Process: select-image-file IPC handler triggered');
@@ -217,6 +248,112 @@ ipcMain.handle('select-output-directory', async (event, defaultPath) => {
 ipcMain.handle('open-directory', async (event, dirPath) => {
   if (fs.existsSync(dirPath)) {
     shell.openPath(dirPath);
+  }
+});
+
+// IPC Handler: Video combining command execution
+ipcMain.handle('combine-video', async (event, inputPaths, outputPath, accuracy) => {
+  if (!inputPaths || inputPaths.length === 0) {
+    return { success: false, message: 'No input files provided.' };
+  }
+
+  const outputDir = path.dirname(outputPath);
+  if (!fs.existsSync(outputDir)) {
+    try {
+      fs.mkdirSync(outputDir, { recursive: true });
+    } catch (err) {
+      return { success: false, message: `Could not create output directory: ${err.message}` };
+    }
+  }
+
+  // Ensure ffmpeg-static binary is executable
+  try {
+    fs.chmodSync(ffmpegPath, 0o755);
+  } catch (e) {
+    // Ignore if already set or read-only filesystem
+  }
+
+  // Create temporary list.txt file
+  const listPath = path.join(outputDir, `concat_list_${Date.now()}.txt`);
+  let listContent = '';
+  for (const p of inputPaths) {
+    // Escape single quotes for ffmpeg concat demuxer
+    const escapedPath = p.replace(/'/g, "'\\''");
+    listContent += `file '${escapedPath}'\n`;
+  }
+
+  try {
+    fs.writeFileSync(listPath, listContent);
+  } catch (err) {
+    return { success: false, message: `Failed to create temporary list file: ${err.message}` };
+  }
+
+  // Notify Renderer
+  mainWindow.webContents.send('split-progress', {
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
+
+  let ffmpegArgs = [];
+  if (accuracy === 'fast') {
+    // Fast stream copy
+    ffmpegArgs = [
+      '-fflags', '+genpts',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', listPath,
+      '-c', 'copy',
+      '-avoid_negative_ts', 'make_zero',
+      '-y',
+      outputPath
+    ];
+  } else {
+    // Re-encode to ensure compatibility (Accurate mode)
+    ffmpegArgs = [
+      '-fflags', '+genpts',
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', listPath,
+      '-c:v', 'libx264',
+      '-preset', 'superfast',
+      '-crf', '20',
+      '-c:a', 'aac',
+      '-b:a', '192k',
+      '-fps_mode', 'vfr',
+      '-af', 'aresample=async=1',
+      '-avoid_negative_ts', 'make_zero',
+      '-y',
+      outputPath
+    ];
+  }
+
+  try {
+    await runFFmpegCommand(ffmpegArgs);
+    
+    // Cleanup list.txt
+    try { fs.unlinkSync(listPath); } catch (e) {}
+
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
+    return { success: true, message: 'Clips combined successfully!' };
+  } catch (error) {
+    console.error('Error combining clips:', error);
+    try { fs.unlinkSync(listPath); } catch (e) {}
+
+    mainWindow.webContents.send('split-progress', {
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'error',
+      error: error.message
+    });
+    return { success: false, message: `Failed to combine clips: ${error.message}` };
   }
 });
 
