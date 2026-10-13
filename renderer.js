@@ -348,6 +348,9 @@ function loadVideo(filePath, fileName) {
   // Reset mute settings
   updateMuteFilenamePreview();
 
+  // Reset combine settings
+  updateCombineFilenamePreview();
+
   videoPlayer.addEventListener('loadedmetadata', onVideoMetadataLoaded, { once: true });
 }
 
@@ -671,6 +674,13 @@ function highlightActiveClipRange() {
   });
 }
 
+async function getTargetOutputDirectory(defaultDir) {
+  if (!settings.alwaysPrompt && settings.defaultExportDir) {
+    return settings.defaultExportDir;
+  }
+  return await window.electronAPI.selectOutputDirectory(settings.defaultExportDir || defaultDir);
+}
+
 // 5. Video Splitting (Exporting) Implementation
 function setupExportEvents() {
   generateBtn.addEventListener('click', async () => {
@@ -681,9 +691,9 @@ function setupExportEvents() {
       return;
     }
 
-    // Prompt user for output directory (Option C)
+    // Prompt user for output directory or use default preference
     const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    const dir = await getTargetOutputDirectory(defaultDir);
     if (!dir) {
       // User cancelled directory choice, abort process
       return;
@@ -967,9 +977,9 @@ function setupSpeedChangerEvents() {
       speedFilenameInput.value = outputName;
     }
 
-    // Prompt user for directory (Option C)
+    // Prompt user for directory or use default preference
     const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    const dir = await getTargetOutputDirectory(defaultDir);
     if (!dir) {
       // User cancelled
       return;
@@ -1520,7 +1530,7 @@ async function handleCropExport() {
   }
 
   const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-  const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+  const dir = await getTargetOutputDirectory(defaultDir);
   if (!dir) {
     return;
   }
@@ -1621,9 +1631,9 @@ function setupReverseEvents() {
 
       const reverseAudio = reverseAudioToggle.checked;
 
-      // Prompt user for directory
+      // Prompt user for directory or use default preference
       const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-      const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+      const dir = await getTargetOutputDirectory(defaultDir);
       if (!dir) {
         return;
       }
@@ -1712,9 +1722,9 @@ function setupRotateEvents() {
 
       const rotationType = rotateTypeSelect.value;
 
-      // Prompt user for directory
+      // Prompt user for directory or use default preference
       const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-      const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+      const dir = await getTargetOutputDirectory(defaultDir);
       if (!dir) {
         return;
       }
@@ -1841,6 +1851,7 @@ function setupCombineEvents() {
           combineClips.push(file);
         });
         renderCombineList();
+        updateCombineFilenamePreview();
       }
     } catch (err) {
       console.error('Failed to select files for combine:', err);
@@ -1866,9 +1877,9 @@ function setupCombineEvents() {
       combineFilenameInput.value = outputName; // Update input field
     }
 
-    // Prompt user for output directory
+    // Prompt user for output directory or use default preference
     const defaultDir = combineClips[0].filePath.substring(0, combineClips[0].filePath.lastIndexOf('/'));
-    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    const dir = await getTargetOutputDirectory(defaultDir);
     if (!dir) {
       return;
     }
@@ -2174,9 +2185,9 @@ function setupDelogoEvents() {
       videoPlayer.videoHeight
     );
 
-    // Prompt user for directory
+    // Prompt user for directory or use default preference
     const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    const dir = await getTargetOutputDirectory(defaultDir);
     if (!dir) {
       return;
     }
@@ -2246,22 +2257,18 @@ if (muteGenerateBtn) {
     }
 
     let outputFileName = muteFilenameInput.value.trim() || 'output-muted.mp4';
+    const ext = videoExportFormat ? videoExportFormat.value : (videoExt || 'mp4');
     if (!outputFileName.includes('.')) {
-      const ext = videoExportFormat ? videoExportFormat.value : 'mp4';
       outputFileName = `${outputFileName}.${ext}`;
       muteFilenameInput.value = outputFileName;
     }
-    let outputDir = '';
-    
-    if (exportTabAlwaysPrompt.checked || !exportTabDirPath.value) {
-      outputDir = await window.electronAPI.selectOutputDirectory(exportTabDirPath.value || undefined);
-      if (!outputDir) return; // User cancelled
-    } else {
-      outputDir = exportTabDirPath.value;
-    }
 
-    // Ensure extension is mp4
-    const finalFileName = window.helpers.replaceExtension(outputFileName, 'mp4');
+    const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+    const dir = await getTargetOutputDirectory(defaultDir);
+    if (!dir) return; // User cancelled
+    outputDir = dir;
+
+    const finalFileName = window.helpers.replaceExtension(outputFileName, ext);
     const outputPath = `${outputDir}/${finalFileName}`;
 
     muteGenerateBtn.disabled = true;
@@ -2272,9 +2279,10 @@ if (muteGenerateBtn) {
     progressProgressBar.style.width = '0%';
     progressStatusText.textContent = 'Preparing...';
 
+    let removeProgressListener = null;
     try {
       // Setup progress listener
-      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+      removeProgressListener = window.electronAPI.onSplitProgress((data) => {
         if (data.status === 'processing') {
           progressStatusText.textContent = `Removing audio: ${data.name}...`;
         } else if (data.status === 'done') {
@@ -2285,7 +2293,7 @@ if (muteGenerateBtn) {
 
       const result = await window.electronAPI.muteVideo(videoPath, outputPath);
       
-      removeProgressListener();
+      if (removeProgressListener) removeProgressListener();
       muteGenerateBtn.disabled = false;
       muteGenerateBtn.textContent = 'Remove Audio & Export';
       progressOverlay.style.display = 'none';
@@ -2296,6 +2304,7 @@ if (muteGenerateBtn) {
         alert(`Failed to remove audio: ${result.message}`);
       }
     } catch (error) {
+      if (removeProgressListener) removeProgressListener();
       muteGenerateBtn.disabled = false;
       muteGenerateBtn.textContent = 'Remove Audio & Export';
       progressOverlay.style.display = 'none';
@@ -2438,12 +2447,17 @@ function updateMuteFilenamePreview() {
   muteFilenameInput.value = `${videoBaseName}_muted.${videoExt}`;
 }
 
-// 12. Helper Function: Check Audio Stream
-function stopReversePlayback() {
-  if (!isReversing) return;
-  isReversing = false;
-  if (playReverseBtn) {
-    playReverseBtn.classList.remove('active');
+function updateCombineFilenamePreview() {
+  if (!combineFilenameInput) return;
+  if (!combineFilenameInput.value.trim()) {
+    if (videoBaseName) {
+      combineFilenameInput.value = `${videoBaseName}_combined.${videoExt}`;
+    } else if (combineClips.length > 0) {
+      const base = combineClips[0].name.replace(/\.[^/.]+$/, "");
+      combineFilenameInput.value = `${base}_combined.${videoExt || 'mp4'}`;
+    } else {
+      combineFilenameInput.value = `combined_video.${videoExt || 'mp4'}`;
+    }
   }
 }
 
@@ -2515,6 +2529,12 @@ function setupSettingsEvents() {
     if (splitAccuracySelect) {
       splitAccuracySelect.value = settings.defaultAccuracy;
     }
+    if (exportTabDirPath) {
+      exportTabDirPath.textContent = settings.defaultExportDir || 'Not set (Will prompt every time)';
+    }
+    if (exportTabAlwaysPrompt) {
+      exportTabAlwaysPrompt.checked = settings.alwaysPrompt;
+    }
     
     settingsModal.style.display = 'none';
   });
@@ -2574,9 +2594,18 @@ function updateAllVideoExtensions(newExt) {
     videoExt = newExt; // Keep track of the active global extension
   }
   
-  // Re-render clip items if any exist
-  const clips = Array.from(document.querySelectorAll('.clip-item'));
-  clips.forEach((clipEl, index) => {
+  // Update internal clips array data models
+  if (Array.isArray(clips)) {
+    clips.forEach(clip => {
+      if (clip && clip.name) {
+        clip.name = replaceExtension(clip.name, newExt);
+      }
+    });
+  }
+
+  // Update DOM clip card inputs
+  const clipCardElements = Array.from(document.querySelectorAll('.clip-card'));
+  clipCardElements.forEach(clipEl => {
     const input = clipEl.querySelector('.clip-name-input');
     if (input && input.value) {
       input.value = replaceExtension(input.value, newExt);
@@ -3520,9 +3549,9 @@ function setupImageEditor() {
       imageExportFilename.value = filename;
     }
 
-    // Prompt for save folder
+    // Prompt for save folder or use default preference
     const defaultDir = imagePath ? imagePath.substring(0, imagePath.lastIndexOf('/')) : null;
-    const dir = await window.electronAPI.selectOutputDirectory(defaultDir);
+    const dir = await getTargetOutputDirectory(defaultDir);
     if (!dir) return;
 
     const finalPath = `${dir}/${filename}`;
@@ -3726,7 +3755,10 @@ function setupImageEditor() {
           imageRemoveBgBtn.innerHTML = 'Remove Background <span class="btn-icon">✨</span>';
         };
         newImg.onerror = () => {
-          throw new Error('Failed to load processed image.');
+          progressOverlay.style.display = 'none';
+          imageRemoveBgBtn.disabled = false;
+          imageRemoveBgBtn.innerHTML = 'Remove Background <span class="btn-icon">✨</span>';
+          alert('Failed to load processed image from AI background removal.');
         };
         newImg.src = newImageUrl;
         
@@ -3813,10 +3845,12 @@ function setupAudioEditor() {
       return;
     }
 
-    const outputDir = await window.electronAPI.selectOutputDirectory();
-    if (!outputDir) return; // User cancelled
+    const defaultDir = currentVideoFile.filePath ? currentVideoFile.filePath.substring(0, currentVideoFile.filePath.lastIndexOf('/')) : null;
+    const dir = await getTargetOutputDirectory(defaultDir);
+    if (!dir) return; // User cancelled
+    outputDir = dir;
 
-    const outputPath = `${outputDir}/${filename}.${format}`;
+    const outputPath = `${dir}/${filename}.${format}`;
 
     audioExtractBtn.disabled = true;
     audioExtractBtn.innerHTML = 'Extracting...';
@@ -3825,8 +3859,9 @@ function setupAudioEditor() {
     progressProgressBar.style.width = '0%';
     progressStatusText.textContent = `Extracting audio...`;
 
+    let removeProgressListener = null;
     try {
-      const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+      removeProgressListener = window.electronAPI.onSplitProgress((data) => {
         if (data.status === 'processing') {
           progressStatusText.textContent = `Extracting audio: ${data.name}...`;
         } else if (data.status === 'done') {
@@ -3837,7 +3872,7 @@ function setupAudioEditor() {
 
       const result = await window.electronAPI.extractAudio(currentVideoFile.filePath, outputPath, format);
       
-      removeProgressListener();
+      if (removeProgressListener) removeProgressListener();
       progressOverlay.style.display = 'none';
 
       if (result.success) {
@@ -3846,6 +3881,7 @@ function setupAudioEditor() {
         alert(`Failed to extract audio: ${result.message}`);
       }
     } catch (err) {
+      if (removeProgressListener) removeProgressListener();
       progressOverlay.style.display = 'none';
       alert(`Error extracting audio: ${err.message}`);
     } finally {

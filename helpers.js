@@ -161,9 +161,9 @@
     let w = Math.round(cropRect.width * scaleX);
     let h = Math.round(cropRect.height * scaleY);
 
-    // Clamping
-    x = Math.max(0, Math.min(x, nativeWidth));
-    y = Math.max(0, Math.min(y, nativeHeight));
+    // Clamping to valid coordinate bounds
+    x = Math.max(0, Math.min(x, Math.max(0, nativeWidth - 1)));
+    y = Math.max(0, Math.min(y, Math.max(0, nativeHeight - 1)));
 
     if (x + w > nativeWidth) {
       w = nativeWidth - x;
@@ -289,7 +289,12 @@
     if (mode === 'solid') {
       return `[0:v]drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=black:t=fill[v]`;
     } else if (mode === 'interpolate') {
-      return `[0:v]delogo=x=${x}:y=${y}:w=${w}:h=${h}[v]`;
+      // delogo filter requires logo area to have at least 1px boundary margin from frame edges
+      const safeX = Math.max(1, x);
+      const safeY = Math.max(1, y);
+      const safeW = Math.max(1, w);
+      const safeH = Math.max(1, h);
+      return `[0:v]delogo=x=${safeX}:y=${safeY}:w=${safeW}:h=${safeH}[v]`;
     } else {
       // Default: Smooth Blur using crop, boxblur, and overlay
       return `[0:v]crop=w=${w}:h=${h}:x=${x}:y=${y},boxblur=15:5[sub];[0:v][sub]overlay=x=${x}:y=${y}[v]`;

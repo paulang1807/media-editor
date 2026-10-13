@@ -173,6 +173,19 @@ describe('Time conversion and validation helpers', () => {
     test('handles empty or null parameters gracefully', () => {
       expect(mapCropToNative(null, null, 100, 100)).toEqual({ x: 0, y: 0, width: 0, height: 0 });
     });
+
+    test('clamps coordinates when exceeding native bounds to valid ranges', () => {
+      const cropRect = { left: 150, top: 150, width: 50, height: 50 };
+      const videoContent = { width: 100, height: 100 };
+      const nativeW = 100;
+      const nativeH = 100;
+
+      const result = mapCropToNative(cropRect, videoContent, nativeW, nativeH);
+      expect(result.x).toBe(99);
+      expect(result.y).toBe(99);
+      expect(result.width).toBe(1);
+      expect(result.height).toBe(1);
+    });
   });
 
   describe('getSpeedRampFilterComplex', () => {
@@ -250,6 +263,11 @@ describe('Time conversion and validation helpers', () => {
     test('generates correct filter for delogo interpolation', () => {
       expect(getEraseFilterComplex('interpolate', 10, 20, 100, 50))
         .toBe('[0:v]delogo=x=10:y=20:w=100:h=50[v]');
+    });
+
+    test('clamps coordinates to at least 1px for delogo to prevent ffmpeg boundary crashes', () => {
+      expect(getEraseFilterComplex('interpolate', 0, 0, 100, 50))
+        .toBe('[0:v]delogo=x=1:y=1:w=100:h=50[v]');
     });
 
     test('generates correct filter for boxblur', () => {

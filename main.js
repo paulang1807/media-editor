@@ -74,6 +74,16 @@ function createWindow() {
   });
 }
 
+function sendProgress(data) {
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+    try {
+      mainWindow.webContents.send('split-progress', data);
+    } catch (e) {
+      console.error('Failed to send progress update:', e);
+    }
+  }
+}
+
 // App lifecycle
 app.whenReady().then(() => {
   // Handle custom media protocol
@@ -95,6 +105,9 @@ app.whenReady().then(() => {
           statusText: response.statusText,
           headers: newHeaders
         });
+      }).catch(error => {
+        console.error('Failed to serve media:', error);
+        return new Response('Media file not found', { status: 404 });
       });
     } catch (error) {
       console.error('Failed to serve media:', error);
@@ -246,7 +259,7 @@ ipcMain.handle('select-output-directory', async (event, defaultPath) => {
 
 // IPC Handler: Open directory in Finder
 ipcMain.handle('open-directory', async (event, dirPath) => {
-  if (fs.existsSync(dirPath)) {
+  if (typeof dirPath === 'string' && dirPath && fs.existsSync(dirPath)) {
     shell.openPath(dirPath);
   }
 });
@@ -277,8 +290,8 @@ ipcMain.handle('combine-video', async (event, inputPaths, outputPath, accuracy) 
   const listPath = path.join(outputDir, `concat_list_${Date.now()}.txt`);
   let listContent = '';
   for (const p of inputPaths) {
-    // Escape single quotes for ffmpeg concat demuxer
-    const escapedPath = p.replace(/'/g, "'\\''");
+    // Escape single quotes and backslashes for ffmpeg concat demuxer
+    const escapedPath = p.replace(/\\/g, '\\\\').replace(/'/g, "'\\''");
     listContent += `file '${escapedPath}'\n`;
   }
 
@@ -289,7 +302,7 @@ ipcMain.handle('combine-video', async (event, inputPaths, outputPath, accuracy) 
   }
 
   // Notify Renderer
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -335,7 +348,7 @@ ipcMain.handle('combine-video', async (event, inputPaths, outputPath, accuracy) 
     // Cleanup list.txt
     try { fs.unlinkSync(listPath); } catch (e) {}
 
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -346,7 +359,7 @@ ipcMain.handle('combine-video', async (event, inputPaths, outputPath, accuracy) 
     console.error('Error combining clips:', error);
     try { fs.unlinkSync(listPath); } catch (e) {}
 
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -383,7 +396,7 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
     const outputPath = path.join(outputDir, clip.name);
 
     // Notify Renderer that we are processing this clip
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: i,
       total: clips.length,
       name: clip.name,
@@ -426,7 +439,7 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
       await runFFmpegCommand(ffmpegArgs);
       
       // Notify Renderer of clip completion
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: i,
         total: clips.length,
         name: clip.name,
@@ -434,7 +447,7 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
       });
     } catch (error) {
       console.error(`Error splitting clip ${clip.name}:`, error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: i,
         total: clips.length,
         name: clip.name,
@@ -471,7 +484,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
   }
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -495,7 +508,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
       ];
       await runFFmpegCommand(argsTimelapse);
       
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -529,7 +542,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
 
     await runFFmpegCommand(argsWithAudio);
     
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -571,7 +584,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
       try {
         await runFFmpegCommand(argsVideoOnly);
         
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -580,7 +593,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
         return { success: true, message: 'Speed change completed successfully (video-only)!' };
       } catch (videoError) {
         console.error('Video-only speed change failed:', videoError);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -591,7 +604,7 @@ ipcMain.handle('change-video-speed', async (event, inputPath, outputPath, multip
       }
     } else {
       console.error('Speed change failed:', error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -633,13 +646,14 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
     '-c:v', 'libx264',
     '-preset', 'superfast',
     '-crf', '20',
-    '-c:a', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '192k',
     '-y',
     outputPath
   ];
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -649,7 +663,7 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
   try {
     await runFFmpegCommand(argsWithAudio);
     
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -683,7 +697,7 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
       try {
         await runFFmpegCommand(argsVideoOnly);
         
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -692,7 +706,7 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
         return { success: true, message: 'Cropping completed successfully (video-only)!' };
       } catch (videoError) {
         console.error('Video-only cropping failed:', videoError);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -703,7 +717,7 @@ ipcMain.handle('crop-video', async (event, inputPath, outputPath, x, y, width, h
       }
     } else {
       console.error('Cropping failed:', error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -754,13 +768,14 @@ ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType
     '-c:v', 'libx264',
     '-preset', 'superfast',
     '-crf', '20',
-    '-c:a', 'copy',
+    '-c:a', 'aac',
+    '-b:a', '192k',
     '-y',
     outputPath
   ];
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -770,7 +785,7 @@ ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType
   try {
     await runFFmpegCommand(argsWithAudio);
     
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -803,7 +818,7 @@ ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType
 
       try {
         await runFFmpegCommand(argsVideoOnly);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -812,7 +827,7 @@ ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType
         return { success: true, message: 'Rotation (video-only) completed successfully!' };
       } catch (videoError) {
         console.error('Video-only rotation failed:', videoError);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -823,7 +838,7 @@ ipcMain.handle('rotate-video', async (event, inputPath, outputPath, rotationType
       }
     } else {
       console.error('Rotation failed:', error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -858,7 +873,7 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
   }
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -889,7 +904,7 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
 
   try {
     await runReverse(reverseAudio);
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -912,7 +927,7 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
       console.log('Video does not have audio stream. Retrying with video-only reverse...');
       try {
         await runReverse(false);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -921,7 +936,7 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
         return { success: true, message: 'Reversing completed successfully (video-only)!' };
       } catch (videoError) {
         console.error('Video-only reversing failed:', videoError);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -932,7 +947,7 @@ ipcMain.handle('reverse-video', async (event, inputPath, outputPath, reverseAudi
       }
     } else {
       console.error('Reversing failed:', error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -967,7 +982,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
   }
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -982,7 +997,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
       '-map', '[v]'
     ];
     if (useAudio) {
-      args.push('-map', '0:a', '-c:a', 'copy');
+      args.push('-map', '0:a?', '-c:a', 'aac', '-b:a', '192k');
     } else {
       args.push('-an');
     }
@@ -998,7 +1013,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
 
   try {
     await runErase(true);
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -1019,7 +1034,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
       console.log('Video does not have audio stream. Retrying with video-only erase...');
       try {
         await runErase(false);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -1028,7 +1043,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
         return { success: true, message: 'Text overlay removal completed successfully (video-only)!' };
       } catch (videoError) {
         console.error('Video-only erase failed:', videoError);
-        mainWindow.webContents.send('split-progress', {
+        sendProgress({
           index: 0,
           total: 1,
           name: path.basename(outputPath),
@@ -1039,7 +1054,7 @@ ipcMain.handle('erase-video', async (event, inputPath, outputPath, mode, x, y, w
       }
     } else {
       console.error('Erase failed:', error);
-      mainWindow.webContents.send('split-progress', {
+      sendProgress({
         index: 0,
         total: 1,
         name: path.basename(outputPath),
@@ -1081,7 +1096,7 @@ ipcMain.handle('mute-video', async (event, inputPath, outputPath) => {
   ];
 
   // Send progress notice
-  mainWindow.webContents.send('split-progress', {
+  sendProgress({
     index: 0,
     total: 1,
     name: path.basename(outputPath),
@@ -1091,7 +1106,7 @@ ipcMain.handle('mute-video', async (event, inputPath, outputPath) => {
   try {
     await runFFmpegCommand(args);
     
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -1100,7 +1115,7 @@ ipcMain.handle('mute-video', async (event, inputPath, outputPath) => {
     return { success: true, message: 'Audio removal completed successfully!' };
   } catch (error) {
     console.error('Audio removal failed:', error);
-    mainWindow.webContents.send('split-progress', {
+    sendProgress({
       index: 0,
       total: 1,
       name: path.basename(outputPath),
@@ -1158,38 +1173,32 @@ ipcMain.handle('extract-audio', async (event, inputPath, outputPath, format) => 
   ];
 
   // Send progress notice
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('split-progress', {
-      index: 0,
-      total: 1,
-      name: path.basename(outputPath),
-      status: 'processing'
-    });
-  }
+  sendProgress({
+    index: 0,
+    total: 1,
+    name: path.basename(outputPath),
+    status: 'processing'
+  });
 
   try {
     await runFFmpegCommand(args);
     
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('split-progress', {
-        index: 0,
-        total: 1,
-        name: path.basename(outputPath),
-        status: 'done'
-      });
-    }
+    sendProgress({
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'done'
+    });
     return { success: true, message: 'Audio extraction completed successfully!' };
   } catch (error) {
     console.error('Audio extraction failed:', error);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('split-progress', {
-        index: 0,
-        total: 1,
-        name: path.basename(outputPath),
-        status: 'error',
-        error: error.message
-      });
-    }
+    sendProgress({
+      index: 0,
+      total: 1,
+      name: path.basename(outputPath),
+      status: 'error',
+      error: error.message
+    });
     return { success: false, message: `Failed to extract audio: ${error.message}` };
   }
 });
@@ -1213,13 +1222,17 @@ function runFFmpegCommand(args) {
 
     process.stderr.on('data', (data) => {
       stderr += data.toString();
+      if (stderr.length > 50000) {
+        stderr = stderr.slice(-30000);
+      }
     });
 
     process.on('close', (code) => {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`FFmpeg process failed with exit code ${code}.\nDetails: ${stderr}`));
+        const detailSnippet = stderr.length > 2000 ? stderr.slice(-2000) : stderr;
+        reject(new Error(`FFmpeg process failed with exit code ${code}.\nDetails: ${detailSnippet}`));
       }
     });
 
