@@ -5,6 +5,7 @@ const {
   secondsToTimestamp,
   timestampToSeconds,
   isValidTimestampFormat,
+  validateAndNormalizeClips,
   getAudioSpeedFilter,
   mapCropToNative,
   getSpeedRampFilterComplex,
@@ -17,7 +18,9 @@ const {
   applyConvolution,
   applyEnhancementFilters,
   getViewportClassForMode,
-  replaceExtension
+  replaceExtension,
+  formatMediaTelemetry,
+  getDefaultFilenameForTool
 } = helpers;
 
 describe('Time conversion and validation helpers', () => {
@@ -90,6 +93,64 @@ describe('Time conversion and validation helpers', () => {
       expect(isValidTimestampFormat('invalid')).toBe(false);
       expect(isValidTimestampFormat('00:00:00:00.000')).toBe(false);
       expect(isValidTimestampFormat('-10')).toBe(false);
+    });
+  });
+
+  describe('validateAndNormalizeClips', () => {
+    test('normalizes valid clips with numeric times', () => {
+      const raw = [
+        { id: 1, name: 'part1.mp4', startTime: 0, endTime: 10 },
+        { id: 2, name: 'part2.mp4', startTime: 10, endTime: 25.5 }
+      ];
+      const result = validateAndNormalizeClips(raw, 30);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.clips).toHaveLength(2);
+      expect(result.clips[0].startTime).toBe(0);
+      expect(result.clips[0].endTime).toBe(10);
+      expect(result.clips[1].startTime).toBe(10);
+      expect(result.clips[1].endTime).toBe(25.5);
+    });
+
+    test('normalizes valid clips with string timestamps', () => {
+      const raw = [
+        { id: 1, name: 'intro.mp4', startTime: '00:00:05.500', endTime: '00:01:10.000' }
+      ];
+      const result = validateAndNormalizeClips(raw, 120);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.clips[0].startTime).toBe(5.5);
+      expect(result.clips[0].endTime).toBe(70);
+    });
+
+    test('catches out of bounds and ordering errors', () => {
+      const raw = [
+        { id: 1, name: 'invalid1.mp4', startTime: -5, endTime: 10 },
+        { id: 2, name: 'invalid2.mp4', startTime: 20, endTime: 15 },
+        { id: 3, name: 'invalid3.mp4', startTime: 50, endTime: 75 }
+      ];
+      const result = validateAndNormalizeClips(raw, 60);
+      expect(result.valid).toBe(false);
+      expect(result.errors.length).toBeGreaterThanOrEqual(3);
+      expect(result.errors.some(e => e.includes('negative'))).toBe(true);
+      expect(result.errors.some(e => e.includes('before end time'))).toBe(true);
+      expect(result.errors.some(e => e.includes('exceeds video duration'))).toBe(true);
+    });
+
+    test('catches empty filenames and malformed timestamp strings', () => {
+      const raw = [
+        { id: 1, name: '   ', startTime: 'invalid', endTime: '00:00:10' }
+      ];
+      const result = validateAndNormalizeClips(raw, 30);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('valid file name'))).toBe(true);
+      expect(result.errors.some(e => e.includes('invalid start time format'))).toBe(true);
+    });
+
+    test('handles empty or non-array raw clips gracefully', () => {
+      expect(validateAndNormalizeClips([], 100).valid).toBe(false);
+      expect(validateAndNormalizeClips(null, 100).valid).toBe(false);
+      expect(validateAndNormalizeClips(undefined, 100).valid).toBe(false);
     });
   });
 
@@ -393,6 +454,61 @@ describe('Time conversion and validation helpers', () => {
         expect(replaceExtension('', 'png')).toBe('');
         expect(replaceExtension(null, 'png')).toBe('');
         expect(replaceExtension(undefined, 'png')).toBe('');
+      });
+    });
+
+    describe('formatMediaTelemetry', () => {
+      test('formats complete telemetry info correctly', () => {
+        const result = formatMediaTelemetry({
+          duration: 125.5,
+          width: 1920,
+          height: 1080,
+          size: '15.4 MB'
+        });
+        expect(result.duration).toBe('00:02:05.500');
+        expect(result.resolution).toBe('1920 x 1080 px');
+        expect(result.size).toBe('15.4 MB');
+      });
+
+      test('formats numeric size in bytes to KB', () => {
+        const result = formatMediaTelemetry({
+          duration: 10,
+          width: 800,
+          height: 600,
+          size: 2048
+        });
+        expect(result.size).toBe('2.0 KB');
+      });
+
+      test('handles empty or missing info with safe defaults', () => {
+        const emptyResult = formatMediaTelemetry(null);
+        expect(emptyResult.duration).toBe('--:--:--.---');
+        expect(emptyResult.resolution).toBe('-- x -- px');
+        expect(emptyResult.size).toBe('--');
+
+        const partialResult = formatMediaTelemetry({});
+        expect(partialResult.duration).toBe('--:--:--.---');
+        expect(partialResult.resolution).toBe('-- x -- px');
+        expect(partialResult.size).toBe('--');
+      });
+    });
+
+    describe('getDefaultFilenameForTool', () => {
+      test('generates expected default filenames for various tools', () => {
+        expect(getDefaultFilenameForTool('speed', 'vacation', 'mp4')).toBe('vacation_speed.mp4');
+        expect(getDefaultFilenameForTool('crop', 'clip', 'mov')).toBe('clip_cropped.mov');
+        expect(getDefaultFilenameForTool('rotate', 'video', 'mkv')).toBe('video_rotated.mkv');
+        expect(getDefaultFilenameForTool('reverse', 'action', 'mp4')).toBe('action_reversed.mp4');
+        expect(getDefaultFilenameForTool('delogo', 'screen', 'mp4')).toBe('screen_erased.mp4');
+        expect(getDefaultFilenameForTool('mute', 'song', 'mp4')).toBe('song_muted.mp4');
+        expect(getDefaultFilenameForTool('combine', 'movie', 'mp4')).toBe('movie_combined.mp4');
+        expect(getDefaultFilenameForTool('audio', 'podcast', 'mp3')).toBe('podcast_audio.mp3');
+        expect(getDefaultFilenameForTool('image_edit', 'photo', 'png')).toBe('photo_edited.png');
+      });
+
+      test('falls back gracefully to untitled when baseName is missing or empty', () => {
+        expect(getDefaultFilenameForTool('speed', '', 'mp4')).toBe('untitled_speed.mp4');
+        expect(getDefaultFilenameForTool('crop', null, 'mp4')).toBe('untitled_cropped.mp4');
       });
     });
   });

@@ -1,4 +1,4 @@
-const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters, getViewportClassForMode, replaceExtension } = window.helpers;
+const { secondsToTimestamp, timestampToSeconds, isValidTimestampFormat, validateAndNormalizeClips, getAudioSpeedFilter, mapCropToNative, getRotatedCanvasDimensions, getPrintDimensions, applyEnhancementFilters, getViewportClassForMode, replaceExtension, formatMediaTelemetry, getDefaultFilenameForTool } = window.helpers;
 
 // State management
 let videoPath = null;
@@ -220,7 +220,7 @@ const settingsCancelBtn = document.getElementById('settings-cancel-btn');
 let settings = {
   defaultExportDir: null,
   alwaysPrompt: true,
-  defaultAccuracy: 'fast'
+  defaultAccuracy: 'accurate'
 };
 
 // Initialize Events
@@ -242,6 +242,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettingsEvents();
   setupImageEditor();
   setupAudioEditor();
+
+  // Initialize Splitter clips view with default 2 clips so options are immediately visible
+  clipCountInput.value = 2;
+  generateClipsData(2);
 });
 
 // 1. File Import Handlers
@@ -270,6 +274,24 @@ function setupFileImportEvents() {
         }
       } catch (err) {
         console.error('Renderer: selectVideoFile failed with error:', err);
+      }
+    });
+  }
+
+  // Global Quick Import in Header
+  const btnQuickImport = document.getElementById('btn-quick-import');
+  if (btnQuickImport) {
+    btnQuickImport.addEventListener('click', () => {
+      const sectionImage = document.getElementById('section-image');
+      const sectionAudio = document.getElementById('section-audio');
+      if (sectionImage && sectionImage.classList.contains('active')) {
+        const imageFileInputBtn = document.getElementById('image-file-input-btn');
+        if (imageFileInputBtn) imageFileInputBtn.click();
+      } else if (sectionAudio && sectionAudio.classList.contains('active')) {
+        const audioFileInputBtn = document.getElementById('audio-file-input-btn');
+        if (audioFileInputBtn) audioFileInputBtn.click();
+      } else {
+        if (fileInputBtn) fileInputBtn.click();
       }
     });
   }
@@ -316,6 +338,10 @@ function loadVideo(filePath, fileName) {
   outputDir = null;
 
   loadedFileName.textContent = fileName;
+  loadedFileName.style.color = '';
+  if (changeFileBtn) changeFileBtn.textContent = 'Change Video';
+  if (dropZone) dropZone.style.display = 'none';
+  videoPlayer.style.display = 'block';
 
   // Use the custom media:// protocol to load file without context restriction
   videoPlayer.src = `media://${filePath}`;
@@ -361,12 +387,15 @@ function onVideoMetadataLoaded() {
   timelineScrubber.max = videoDuration;
   timelineScrubber.value = 0;
 
-  // Show workspace, hide empty state
-  emptyState.style.display = 'none';
+  // Show player, hide dropzone
+  if (emptyState) emptyState.style.display = 'none';
+  if (dropZone) dropZone.style.display = 'none';
+  videoPlayer.style.display = 'block';
   editorWorkspace.style.display = 'flex';
 
-  // Initialize Clips
+  // Initialize Clips with real duration
   clipCountInput.value = 2; // Default to 2 clips
+  clips = []; // reset clips so it slices cleanly across real video duration
   generateClipsData(2);
 
   // Initialize crop normalized coords
@@ -453,12 +482,13 @@ function generateClipsData(count) {
     // If starting fresh, split the video equally
     if (currentCount === 0) {
       const segmentDuration = videoDuration / count;
+      const base = videoBaseName || 'video';
       for (let i = 0; i < count; i++) {
         const start = i * segmentDuration;
         const end = (i + 1) * segmentDuration;
         clips.push({
           id: i + 1,
-          name: `${videoBaseName}_clip_${i + 1}.${videoExt}`,
+          name: `${base}_clip_${i + 1}.${videoExt}`,
           startTime: start,
           endTime: end
         });
@@ -467,6 +497,7 @@ function generateClipsData(count) {
       // Add clips at the end of the video
       const remainingTime = Math.max(0, videoDuration - clips[currentCount - 1].endTime);
       const segmentDuration = remainingTime > 0 ? remainingTime / (count - currentCount) : videoDuration / count;
+      const base = videoBaseName || 'video';
       
       let baseTime = clips[currentCount - 1].endTime;
       for (let i = currentCount; i < count; i++) {
@@ -474,7 +505,7 @@ function generateClipsData(count) {
         const end = Math.min(baseTime + segmentDuration, videoDuration);
         clips.push({
           id: i + 1,
-          name: `${videoBaseName}_clip_${i + 1}.${videoExt}`,
+          name: `${base}_clip_${i + 1}.${videoExt}`,
           startTime: start,
           endTime: end
         });
@@ -539,6 +570,9 @@ function renderClipCards() {
     const endSetBtn = card.querySelector('.end-set-btn');
     const errorDiv = card.querySelector('.clip-validation-error');
 
+    nameInput.addEventListener('input', () => {
+      clip.name = nameInput.value.trim();
+    });
     nameInput.addEventListener('change', () => {
       clip.name = nameInput.value.trim();
     });
@@ -599,8 +633,26 @@ function renderClipCards() {
       }
     };
 
+    startInput.addEventListener('input', updateClipTimes);
+    endInput.addEventListener('input', updateClipTimes);
+    startInput.addEventListener('change', updateClipTimes);
+    endInput.addEventListener('change', updateClipTimes);
     startInput.addEventListener('blur', updateClipTimes);
     endInput.addEventListener('blur', updateClipTimes);
+
+    startInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        updateClipTimes();
+        startInput.blur();
+      }
+    });
+
+    endInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        updateClipTimes();
+        endInput.blur();
+      }
+    });
 
     // Set times to current player position
     startSetBtn.addEventListener('click', () => {
@@ -684,72 +736,86 @@ async function getTargetOutputDirectory(defaultDir) {
 // 5. Video Splitting (Exporting) Implementation
 function setupExportEvents() {
   generateBtn.addEventListener('click', async () => {
-    // Validate all clips before invoking backend
-    const hasErrors = clipsContainer.querySelectorAll('.invalid').length > 0;
-    if (hasErrors) {
-      alert('Please fix all validation errors before generating clips.');
-      return;
-    }
-
-    // Prompt user for output directory or use default preference
-    const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
-    const dir = await getTargetOutputDirectory(defaultDir);
-    if (!dir) {
-      // User cancelled directory choice, abort process
-      return;
-    }
-    outputDir = dir;
-
-    // Secondary deep check
-    for (let i = 0; i < clips.length; i++) {
-      const clip = clips[i];
-      if (clip.startTime < 0 || clip.endTime > videoDuration || clip.startTime >= clip.endTime) {
-        alert(`Clip ${clip.id} has invalid times. Please fix it.`);
-        return;
-      }
-      if (!clip.name.trim()) {
-        alert(`Clip ${clip.id} must have a file name.`);
-        return;
-      }
-    }
-
-    // UI State: Disable generating button
-    generateBtn.disabled = true;
-    generateBtn.textContent = 'Processing...';
-
-    // Show Progress Overlay
-    progressOverlay.style.display = 'flex';
-    progressProgressBar.style.width = '0%';
-    progressPercentText.textContent = '0%';
-    progressStatusText.textContent = 'Starting process...';
-
-    // Listen to progress updates
-    const removeProgressListener = window.electronAPI.onSplitProgress((data) => {
-      // data format: { index, total, name, status, error }
-      const currentProgress = ((data.index) / data.total) * 100;
-      
-      if (data.status === 'processing') {
-        progressStatusText.textContent = `Generating Clip ${data.index + 1} of ${data.total}: "${data.name}"`;
-        // Intermediate display
-        const partProgress = currentProgress + (0.5 / data.total) * 100;
-        progressProgressBar.style.width = `${partProgress}%`;
-        progressPercentText.textContent = `${Math.round(partProgress)}%`;
-      } else if (data.status === 'done') {
-        progressStatusText.textContent = `Finished Clip ${data.index + 1} of ${data.total}!`;
-        const doneProgress = ((data.index + 1) / data.total) * 100;
-        progressProgressBar.style.width = `${doneProgress}%`;
-        progressPercentText.textContent = `${Math.round(doneProgress)}%`;
-      } else if (data.status === 'error') {
-        progressStatusText.textContent = `Error in "${data.name}": ${data.error}`;
-      }
-    });
-
-    const accuracy = splitAccuracySelect.value;
-
+    let removeProgressListener = null;
     try {
-      const result = await window.electronAPI.splitVideo(videoPath, outputDir, accuracy, clips);
+      if (!videoPath) {
+        alert('Please import a video file first.');
+        if (fileInputBtn) fileInputBtn.click();
+        return;
+      }
+
+      // Synchronize inputs from DOM so active/unblurred edits are captured
+      const clipCards = clipsContainer.querySelectorAll('.clip-card');
+      clipCards.forEach((card, idx) => {
+        if (clips[idx]) {
+          const nameInput = card.querySelector('.clip-name-input');
+          const startInput = card.querySelector('.start-time-input');
+          const endInput = card.querySelector('.end-time-input');
+          if (nameInput) clips[idx].name = nameInput.value.trim();
+          if (startInput) {
+            const sSec = timestampToSeconds(startInput.value);
+            if (sSec !== null) clips[idx].startTime = sSec;
+          }
+          if (endInput) {
+            const eSec = timestampToSeconds(endInput.value);
+            if (eSec !== null) clips[idx].endTime = eSec;
+          }
+        }
+      });
+
+      // Validate clips using validateAndNormalizeClips
+      const clipValidator = window.helpers?.validateAndNormalizeClips || validateAndNormalizeClips;
+      const validation = clipValidator(clips, videoDuration);
+      if (!validation.valid) {
+        alert(`Please fix clip errors before generating clips:\n• ${validation.errors.join('\n• ')}`);
+        return;
+      }
+      const clipsToExport = validation.clips;
+
+      // Prompt user for output directory or use default preference
+      const defaultDir = videoPath ? videoPath.substring(0, videoPath.lastIndexOf('/')) : null;
+      const dir = await getTargetOutputDirectory(defaultDir);
+      if (!dir) {
+        // User cancelled directory choice, abort process
+        return;
+      }
+      outputDir = dir;
+
+      // UI State: Disable generating button
+      generateBtn.disabled = true;
+      generateBtn.textContent = 'Processing...';
+
+      // Show Progress Overlay
+      progressOverlay.style.display = 'flex';
+      progressProgressBar.style.width = '0%';
+      progressPercentText.textContent = '0%';
+      progressStatusText.textContent = 'Starting process...';
+
+      // Listen to progress updates
+      removeProgressListener = window.electronAPI.onSplitProgress((data) => {
+        // data format: { index, total, name, status, error }
+        const currentProgress = ((data.index) / data.total) * 100;
+        
+        if (data.status === 'processing') {
+          progressStatusText.textContent = `Generating Clip ${data.index + 1} of ${data.total}: "${data.name}"`;
+          // Intermediate display
+          const partProgress = currentProgress + (0.5 / data.total) * 100;
+          progressProgressBar.style.width = `${partProgress}%`;
+          progressPercentText.textContent = `${Math.round(partProgress)}%`;
+        } else if (data.status === 'done') {
+          progressStatusText.textContent = `Finished Clip ${data.index + 1} of ${data.total}!`;
+          const doneProgress = ((data.index + 1) / data.total) * 100;
+          progressProgressBar.style.width = `${doneProgress}%`;
+          progressPercentText.textContent = `${Math.round(doneProgress)}%`;
+        } else if (data.status === 'error') {
+          progressStatusText.textContent = `Error in "${data.name}": ${data.error}`;
+        }
+      });
+
+      const accuracy = splitAccuracySelect.value;
+      const result = await window.electronAPI.splitVideo(videoPath, outputDir, accuracy, clipsToExport);
       
-      removeProgressListener();
+      if (typeof removeProgressListener === 'function') removeProgressListener();
       generateBtn.disabled = false;
       generateBtn.textContent = 'Generate Clips';
       progressOverlay.style.display = 'none';
@@ -761,10 +827,11 @@ function setupExportEvents() {
         alert(`Failed to split clips: ${result.message}`);
       }
     } catch (error) {
-      removeProgressListener();
+      if (typeof removeProgressListener === 'function') removeProgressListener();
       generateBtn.disabled = false;
       generateBtn.textContent = 'Generate Clips';
       progressOverlay.style.display = 'none';
+      console.error('Error during video split export:', error);
       alert(`Unexpected error: ${error.message}`);
     }
   });
@@ -807,10 +874,10 @@ function setupTabEvents() {
       
       // Handle special overlays based on active tab
       if (tab === tabCrop) {
-        cropOverlayContainer.style.display = 'block';
+        cropOverlayContainer.style.display = videoPath ? 'block' : 'none';
         delogoOverlayContainer.style.display = 'none';
       } else if (tab === tabDelogo) {
-        delogoOverlayContainer.style.display = 'block';
+        delogoOverlayContainer.style.display = videoPath ? 'block' : 'none';
         cropOverlayContainer.style.display = 'none';
       } else {
         cropOverlayContainer.style.display = 'none';
@@ -2473,6 +2540,10 @@ function loadSettings() {
     console.error('Failed to load settings from localStorage:', e);
   }
   
+  if (!settings.defaultAccuracy) {
+    settings.defaultAccuracy = 'accurate';
+  }
+
   if (splitAccuracySelect) {
     splitAccuracySelect.value = settings.defaultAccuracy;
   }
@@ -2798,9 +2869,15 @@ function setupImageEditor() {
       // Initial draw
       drawImage();
       
-      // Show workspace
-      imageEmptyState.style.display = 'none';
+      // Hide monitor dropzone, show canvas container
+      const imageDropZone = document.getElementById('image-drop-zone');
+      const imageCanvasContainer = document.getElementById('image-canvas-container');
+      if (imageEmptyState) imageEmptyState.style.display = 'none';
+      if (imageDropZone) imageDropZone.style.display = 'none';
+      if (imageCanvasContainer) imageCanvasContainer.style.display = 'flex';
       imageEditorWorkspace.style.display = 'flex';
+      if (changeImageBtn) changeImageBtn.textContent = 'Change Image';
+      if (loadedImageName) loadedImageName.style.color = '';
     };
     imageObj.src = `media://${filePath}`;
   }
@@ -3787,12 +3864,41 @@ function setupAudioEditor() {
 
   function loadAudioSourceVideo(filePath, fileName) {
     currentVideoFile = { filePath, fileName };
-    audioEmptyState.style.display = 'none';
+    if (audioEmptyState) audioEmptyState.style.display = 'none';
+    if (audioDropZone) audioDropZone.style.display = 'none';
+    const audioActiveDisplay = document.getElementById('audio-active-display');
+    if (audioActiveDisplay) audioActiveDisplay.style.display = 'flex';
     audioEditorWorkspace.style.display = 'flex';
+    
+    const audioLoadedTitle = document.getElementById('audio-loaded-title');
+    if (audioLoadedTitle) audioLoadedTitle.textContent = fileName;
+    const loadedAudioName = document.getElementById('loaded-audio-name');
+    if (loadedAudioName) {
+      loadedAudioName.textContent = fileName;
+      loadedAudioName.style.color = '';
+    }
+    const changeAudioBtn = document.getElementById('change-audio-btn');
+    if (changeAudioBtn) changeAudioBtn.textContent = 'Change Media';
     
     // Default filename based on original
     const baseName = fileName.replace(/\.[^/.]+$/, "");
     audioExportFilename.value = `${baseName}_audio`;
+  }
+
+  // Change Audio Media Button
+  const changeAudioBtn = document.getElementById('change-audio-btn');
+  if (changeAudioBtn) {
+    changeAudioBtn.addEventListener('click', () => {
+      audioFileInputBtn.click();
+    });
+  }
+
+  // Format selection update target display
+  const loadedAudioTargetFormat = document.getElementById('loaded-audio-target-format');
+  if (audioExportFormat && loadedAudioTargetFormat) {
+    audioExportFormat.addEventListener('change', () => {
+      loadedAudioTargetFormat.textContent = `${audioExportFormat.value.toUpperCase()} Audio`;
+    });
   }
 
   // Browse File Button
@@ -3835,7 +3941,11 @@ function setupAudioEditor() {
 
   // Extract Button
   audioExtractBtn.addEventListener('click', async () => {
-    if (!currentVideoFile) return;
+    if (!currentVideoFile) {
+      alert('Please import a video or audio file first.');
+      audioFileInputBtn.click();
+      return;
+    }
 
     const format = audioExportFormat.value;
     const filename = audioExportFilename.value.trim();

@@ -62,3 +62,7 @@ coverage/
 # Generated AI assets
 libs/
 models/
+
+# Scratch & temporary scripts
+scratch/
+

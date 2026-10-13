@@ -403,26 +403,28 @@ ipcMain.handle('split-video', async (event, inputPath, outputDir, accuracy, clip
       status: 'processing'
     });
 
-    const duration = clip.endTime - clip.startTime;
+    const start = Math.max(0, parseFloat(clip.startTime) || 0);
+    const end = Math.max(start, parseFloat(clip.endTime) || 0);
+    const duration = Math.max(0.01, end - start);
 
     let ffmpegArgs = [];
     if (accuracy === 'fast') {
-      // Fast, lossless stream copying.
-      // -ss before -i makes it fast, seek to keyframe.
-      // -t sets duration.
+      // Fast mode stream copy:
+      // Note: Fast mode snaps to nearest preceding keyframe.
+      // Omit make_zero so timestamps are not reset to 00:00:00.
       ffmpegArgs = [
-        '-ss', clip.startTime.toFixed(3),
+        '-ss', start.toFixed(3),
         '-i', inputPath,
         '-t', duration.toFixed(3),
         '-c', 'copy',
-        '-avoid_negative_ts', 'make_zero',
         '-y',
         outputPath
       ];
     } else {
-      // Frame-accurate re-encoding.
+      // Frame-accurate re-encoding (Default):
+      // Decodes and cuts at the exact millisecond requested.
       ffmpegArgs = [
-        '-ss', clip.startTime.toFixed(3),
+        '-ss', start.toFixed(3),
         '-i', inputPath,
         '-t', duration.toFixed(3),
         '-c:v', 'libx264',

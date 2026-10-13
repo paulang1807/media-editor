@@ -99,6 +99,82 @@
   }
 
   /**
+   * Validates and normalizes video clips configuration.
+   * Parses time strings if present, checks range boundaries, and ensures non-empty clip names.
+   * @param {Array<Object>} rawClips - Array of clips { id, name, startTime, endTime }
+   * @param {number} [videoDuration=Infinity] - Total duration of the video in seconds
+   * @returns {{ valid: boolean, errors: string[], clips: Array<{ id: any, name: string, startTime: number, endTime: number }> }}
+   */
+  function validateAndNormalizeClips(rawClips, videoDuration) {
+    if (!Array.isArray(rawClips) || rawClips.length === 0) {
+      return { valid: false, errors: ['No clips provided.'], clips: [] };
+    }
+
+    const maxDuration = (typeof videoDuration === 'number' && !isNaN(videoDuration) && videoDuration > 0)
+      ? videoDuration
+      : Infinity;
+
+    const errors = [];
+    const normalized = [];
+
+    for (let i = 0; i < rawClips.length; i++) {
+      const c = rawClips[i];
+      const clipId = c && c.id !== undefined ? c.id : i + 1;
+      const rawName = c && typeof c.name === 'string' ? c.name.trim() : `clip_${clipId}.mp4`;
+
+      if (!rawName) {
+        errors.push(`Clip ${clipId} must have a valid file name.`);
+      }
+
+      let start = null;
+      if (typeof c?.startTime === 'number' && !isNaN(c.startTime)) {
+        start = c.startTime;
+      } else if (typeof c?.startTime === 'string') {
+        start = timestampToSeconds(c.startTime);
+      }
+
+      let end = null;
+      if (typeof c?.endTime === 'number' && !isNaN(c.endTime)) {
+        end = c.endTime;
+      } else if (typeof c?.endTime === 'string') {
+        end = timestampToSeconds(c.endTime);
+      }
+
+      if (start === null || isNaN(start)) {
+        errors.push(`Clip ${clipId} has an invalid start time format.`);
+      }
+      if (end === null || isNaN(end)) {
+        errors.push(`Clip ${clipId} has an invalid end time format.`);
+      }
+
+      if (start !== null && end !== null) {
+        if (start < 0) {
+          errors.push(`Clip ${clipId} start time cannot be negative.`);
+        }
+        if (end > maxDuration) {
+          errors.push(`Clip ${clipId} end time exceeds video duration.`);
+        }
+        if (start >= end) {
+          errors.push(`Clip ${clipId} start time must be before end time.`);
+        }
+      }
+
+      normalized.push({
+        id: clipId,
+        name: rawName || `clip_${clipId}.mp4`,
+        startTime: start !== null && !isNaN(start) ? Math.max(0, start) : 0,
+        endTime: end !== null && !isNaN(end) ? Math.max(0, end) : 0
+      });
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      clips: normalized
+    };
+  }
+
+  /**
    * Generates the FFmpeg 'atempo' filter chain string for a speed multiplier.
    * Since atempo only accepts values in [0.5, 2.0], values outside this range
    * must be chained (multiplied).
@@ -559,12 +635,58 @@
     return `${base}.${newExt}`;
   }
 
+  /**
+   * Formats media telemetry strings for display in the studio viewport or status cards.
+   * @param {Object} info - Media info object { duration, width, height, size }
+   * @returns {Object} Formatted telemetry strings { duration, resolution, size }
+   */
+  function formatMediaTelemetry(info) {
+    if (!info || typeof info !== 'object') {
+      return { duration: '--:--:--.---', resolution: '-- x -- px', size: '--' };
+    }
+    const duration = typeof info.duration === 'number' && !isNaN(info.duration) && info.duration >= 0
+      ? secondsToTimestamp(info.duration)
+      : (typeof info.duration === 'string' && info.duration ? info.duration : '--:--:--.---');
+    const resolution = (info.width && info.height && !isNaN(info.width) && !isNaN(info.height))
+      ? `${Math.round(info.width)} x ${Math.round(info.height)} px`
+      : '-- x -- px';
+    const size = typeof info.size === 'string' && info.size ? info.size : (typeof info.size === 'number' ? `${(info.size / 1024).toFixed(1)} KB` : '--');
+    return { duration, resolution, size };
+  }
+
+  /**
+   * Generates a standardized, professional default export filename for a tool.
+   * @param {string} tool - The tool name (e.g., 'speed', 'crop', 'rotate', 'reverse', 'delogo', 'mute', 'combine', 'audio').
+   * @param {string} baseName - Base filename without extension.
+   * @param {string} ext - Extension without dot (e.g. 'mp4', 'png', 'mp3').
+   * @returns {string} Standardized output filename.
+   */
+  function getDefaultFilenameForTool(tool, baseName, ext) {
+    const safeBase = (typeof baseName === 'string' && baseName.trim()) ? baseName.trim() : 'untitled';
+    const safeExt = (typeof ext === 'string' && ext.trim()) ? ext.trim().replace(/^\./, '') : 'mp4';
+    switch (tool) {
+      case 'speed': return `${safeBase}_speed.${safeExt}`;
+      case 'crop': return `${safeBase}_cropped.${safeExt}`;
+      case 'rotate': return `${safeBase}_rotated.${safeExt}`;
+      case 'reverse': return `${safeBase}_reversed.${safeExt}`;
+      case 'delogo':
+      case 'erase': return `${safeBase}_erased.${safeExt}`;
+      case 'mute': return `${safeBase}_muted.${safeExt}`;
+      case 'combine': return `${safeBase}_combined.${safeExt}`;
+      case 'extract':
+      case 'audio': return `${safeBase}_audio.${safeExt}`;
+      case 'image_edit': return `${safeBase}_edited.${safeExt}`;
+      default: return `${safeBase}_processed.${safeExt}`;
+    }
+  }
+
   // Export block supporting both Node.js environment (for Vitest) and Browser
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
       secondsToTimestamp,
       timestampToSeconds,
       isValidTimestampFormat,
+      validateAndNormalizeClips,
       getAudioSpeedFilter,
       mapCropToNative,
       getSpeedRampFilterComplex,
@@ -577,13 +699,16 @@
       applyConvolution,
       applyEnhancementFilters,
       getViewportClassForMode,
-      replaceExtension
+      replaceExtension,
+      formatMediaTelemetry,
+      getDefaultFilenameForTool
     };
   } else {
     window.helpers = {
       secondsToTimestamp,
       timestampToSeconds,
       isValidTimestampFormat,
+      validateAndNormalizeClips,
       getAudioSpeedFilter,
       mapCropToNative,
       getSpeedRampFilterComplex,
@@ -596,7 +721,9 @@
       applyConvolution,
       applyEnhancementFilters,
       getViewportClassForMode,
-      replaceExtension
+      replaceExtension,
+      formatMediaTelemetry,
+      getDefaultFilenameForTool
     };
   }
 })();
