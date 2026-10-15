@@ -89,7 +89,7 @@ A complete client-side canvas-powered image processing studio:
     *   *Original Size*: 1:1 pixel rendering with horizontal and vertical scrollbars.
 *   **Multi-Format Export**: Save high-resolution outputs directly to **PNG**, **JPEG/JPG**, and **WebP**.
 
-![Image Editor UI Mockup](./image_editor_ui_mockup.png)
+![Image Editor](./image_editor_ui.png)
 
 ---
 
@@ -270,6 +270,6 @@ npm run test
 *   [`split_feature_ui.png`](./split_feature_ui.png) - Visual screenshot of the Video Splitter interface.
 *   [`crop_feature_ui.png`](./crop_feature_ui.png) - Visual screenshot of the Video Frame Cropper interface.
 *   [`speed_feature_ui.png`](./speed_feature_ui.png) - Visual screenshot of the Video Speed Changer interface.
-*   [`image_editor_ui_mockup.png`](./image_editor_ui_mockup.png) - Visual screenshot of the Image Editor interface.
+*   [`image_editor_ui.png`](./image_editor_ui.png) - Visual screenshot of the Image Editor interface.
 *   [`media_editor_demo.mp4`](./media_editor_demo.mp4) - High-resolution workflow video demonstration.
 *   [`media_editor_demo.gif`](./media_editor_demo.gif) - Animated workflow preview.
