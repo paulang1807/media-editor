@@ -123,6 +123,9 @@ No external installation of FFmpeg, Homebrew, or ImageMagick is required; the ap
 
 ## Installation & Setup
 
+> [!TIP]
+> **For Autonomous AI Agents**: A machine-actionable guide with verification steps and preflight checks is provided in [`AGENT_SETUP.md`](./AGENT_SETUP.md).
+
 1.  **Clone the repository**:
     ```bash
     git clone <repository-url>
@@ -260,6 +263,8 @@ npm run test
 
 ## Project Structure
 
+*   [`README.md`](./README.md) - Primary project overview, features, and user guide.
+*   [`AGENT_SETUP.md`](./AGENT_SETUP.md) - Machine-actionable setup and installation guide for autonomous AI agents.
 *   [`main.js`](./main.js) - Electron main process: window lifecycle, IPC handlers (`split-video`, `speed-video`, `crop-video`, `reverse-video`, `rotate-video`, `erase-video`, `mute-video`, `combine-videos`, `extract-audio`), custom `media://` streaming protocol, and FFmpeg execution.
 *   [`preload.js`](./preload.js) - Secure context bridge (`electronAPI`) exposing IPC methods to the renderer.
 *   [`renderer.js`](./renderer.js) - Studio application controller: tool navigation, timeline scrubbers, clip synchronization, canvas rendering, and export flows.
